@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mock Interview</title>
+</head>
+<body>
+    <h1>🎤 Mock Interview</h1>
+    <form method="post">
+        {% csrf_token %}
+        <button type="submit">Start Interview</button>
+    </form>
+
+    {% if question %}
+        <h2>🧑‍💼 Question: {{ question }}</h2>
+        <p><strong>🎙️ Your Answer:</strong> {{ answer }}</p>
+        <h3>🤖 Feedback:</h3>
+        <p>{{ feedback }}</p>
+    {% endif %}
+</body>
+</html>
