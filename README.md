@@ -44,3 +44,8 @@ This project is a local mock interview assistant built with Python, Speech Recog
 
 ### 3. Run the python script
 - python interview_feedback.py
+
+## Run Web app
+- python manage.py runserver
+
+wthelly
