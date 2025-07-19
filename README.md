@@ -1,51 +1,35 @@
-# Mock Interview Assistant
+# Interview Feedback Simulator
 
-This project is a local mock interview assistant built with Python, Speech Recognition, and a local Large Language Model (LLM) using [Ollama](https://ollama.com). It simulates an interview scenario by:
-
-- Asking an interview question
-- Capturing and transcribing the user’s spoken answer
-- Sending the answer to an LLM (e.g., Mistral) running locally via Ollama
-- Returning constructive feedback based on the user's response
-
----
+This project simulates a mock interview session using speech input, real-time emotion detection, and local LLM-based feedback. It is designed to help users practice and receive constructive interview feedback.
 
 ## Features
 
--  Voice-based input using your microphone
--  Real-time transcription using Google's Web Speech API
--  Local LLM-powered feedback using Ollama (no OpenAI API required)
--  Easy to set up and extend
+- Microphone-based voice recording
+- Emotion detection via webcam using DeepFace
+- Real-time transcription using Google Speech Recognition
+- Feedback generation using a local LLM model via Ollama
 
----
+## Prerequisites
 
-## Requirements
+Ensure you have the following installed:
 
-### System Requirements
+### Python
 
-- Python 3.8+
-- A functioning microphone
-- Internet connection (for Google Speech API transcription only)
-- Ollama installed locally with a supported model (e.g., Mistral)
+- Python 3.8 or higher
 
----
+### System Tools
 
-## Setup Instructions
+- Microphone and webcam
+- FLAC encoder (used by the SpeechRecognition library)
+  - Windows: [flac.exe](https://xiph.org/flac/download.html) and add to your PATH
+  - macOS: Use `brew install flac`
 
-### 1. Install Python Dependencies
+### Ollama (for local LLM)
 
-- Install the required Python libraries using pip:
+1. Download Ollama from https://ollama.com/
+2. Install and start it (typically runs in the background)
+3. Pull the desired model:
+   ```bash
+   ollama pull mistral
 
-- ```bash
-- pip install speechrecognition pyaudio requests
-
-
-### 2. Install Ollama (Local LLM)
-- ollama run mistral
-
-### 3. Run the python script
-- python interview_feedback.py
-
-## Run Web app
-- python manage.py runserver
-
-wthelly
+pip install opencv-python deepface SpeechRecognition requests pyaudio
