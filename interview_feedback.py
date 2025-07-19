@@ -3,11 +3,24 @@ import platform
 import cv2
 import speech_recognition as sr
 import requests
-import json
 import threading
-import sys
 import ctypes
+import random
+import time
 from deepface import DeepFace
+
+interview_questions = [
+    "Tell me about yourself.",
+    "What are your greatest strengths?",
+    "What are your weaknesses?",
+    "Why do you want to work here?",
+    "Where do you see yourself in five years?",
+    "Tell me about a challenge you faced and how you handled it.",
+    "Why should we hire you?",
+    "Describe a time you worked in a team.",
+    "What do you know about our company?",
+    "How do you handle pressure and stress?"
+]
 
 stop_event = threading.Event()
 detected_emotion = "neutral"
@@ -24,7 +37,7 @@ def detect_emotion_live():
     global detected_emotion
     cap = cv2.VideoCapture(0)
 
-    print("Emotion detection started. Press [ENTER] to end.")
+    print("Emotion detection started")
 
     while cap.isOpened() and not stop_event.is_set():
         ret, frame = cap.read()
@@ -160,11 +173,13 @@ def clean_exit():
     ctypes.windll.kernel32.TerminateProcess(ctypes.windll.kernel32.OpenProcess(1, False, pid), 0)
 
 if __name__ == "__main__":
+    selected_question = random.choice(interview_questions)
+
     emotion_thread = threading.Thread(target=detect_emotion_live)
     emotion_thread.daemon = True
     emotion_thread.start()
-
-    print("\nInterviewer: Tell me about yourself.")
+    time.sleep(10)
+    print(f"\nInterviewer: {selected_question}")
 
     answer = transcribe_until_enter()
 
@@ -172,6 +187,6 @@ if __name__ == "__main__":
     emotion_thread.join()
 
     if answer:
-        get_ollama_feedback(answer, "Tell me about yourself.", detected_emotion)
+        get_ollama_feedback(answer, selected_question, detected_emotion)
 
     clean_exit()
