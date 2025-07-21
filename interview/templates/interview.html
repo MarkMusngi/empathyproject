@@ -1,20 +1,99 @@
+{% load static %}
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Mock Interview</title>
+    <meta charset="UTF-8">
+    <title>Interview</title>
+    <link rel="stylesheet" href="{% static 'interview.css' %}">
 </head>
 <body>
-    <h1>🎤 Mock Interview</h1>
-    <form method="post">
-        {% csrf_token %}
-        <button type="submit">Start Interview</button>
-    </form>
+    <div class="container">
+        <h1>Mock Interview</h1>
 
-    {% if question %}
-        <h2>🧑‍💼 Question: {{ question }}</h2>
-        <p><strong>🎙️ Your Answer:</strong> {{ answer }}</p>
-        <h3>🤖 Feedback:</h3>
-        <p>{{ feedback }}</p>
-    {% endif %}
+        <div class="question-section">
+            <h2>Interview Question:</h2>
+            <p class="question-text">{{ question }}</p>
+        </div>
+
+        <div class="video-section">
+            <video id="webcam" autoplay muted></video>
+        </div>
+
+        <div class="controls">
+            <button class="btn start" onclick="startRecognition()">Start Answer</button>
+            <button class="btn stop" onclick="stopRecognition()">Finish Answer</button>
+        </div>
+
+        <div class="status-section">
+            <p id="status">Status: Idle</p>
+            <p id="transcript-output"></p>
+        </div>
+
+        <form id="transcribe-form" action="{% url 'feedback_page' %}" method="get">
+            <input type="hidden" name="transcript" id="transcript-input">
+            <button type="submit" id="goto-feedback" style="display: none;">Go to Feedback</button>
+        </form>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById("status");
+        const outputEl = document.getElementById("transcript-output");
+        const inputEl = document.getElementById("transcript-input");
+
+        let recognition;
+        let finalTranscript = "";
+
+        function startRecognition() {
+            if (!('webkitSpeechRecognition' in window)) {
+                statusEl.innerText = "Speech recognition not supported in this browser.";
+                return;
+            }
+
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            finalTranscript = "";
+            statusEl.innerText = "Listening...";
+
+            recognition.onresult = function(event) {
+                let interimTranscript = '';
+                for (let i = event.resultIndex; i < event.results.length; ++i) {
+                    if (event.results[i].isFinal) {
+                        finalTranscript += event.results[i][0].transcript + ' ';
+                    } else {
+                        interimTranscript += event.results[i][0].transcript;
+                    }
+                }
+
+                outputEl.innerText = finalTranscript + interimTranscript;
+                inputEl.value = finalTranscript.trim();
+            };
+
+            recognition.onerror = function(event) {
+                statusEl.innerText = "❌ Error: " + event.error;
+            };
+
+            recognition.onend = function() {
+                statusEl.innerText = "✅ Finished.";
+                document.getElementById("goto-feedback").style.display = "inline";
+            };
+
+            recognition.start();
+        }
+
+        function stopRecognition() {
+            if (recognition) {
+                recognition.stop();
+            }
+        }
+
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+            document.getElementById('webcam').srcObject = stream;
+        }).catch(err => {
+            console.error("Webcam error:", err);
+        });
+    </script>
 </body>
 </html>

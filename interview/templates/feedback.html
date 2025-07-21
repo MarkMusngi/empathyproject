@@ -1,0 +1,36 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Interview Feedback</title>
+    <link rel="stylesheet" href="{% static 'feedback.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h1>Interview Feedback</h1>
+
+        <section class="feedback-section">
+            <h2>Question</h2>
+            <p class="content">{{ question }}</p>
+        </section>
+
+        <section class="feedback-section">
+            <h2>Your Answer</h2>
+            <p class="content">{{ answer }}</p>
+        </section>
+
+        <section class="feedback-section">
+            <h2>Detected Emotion</h2>
+            <p class="content">{{ emotion|capfirst }}</p>
+        </section>
+
+        <section class="feedback-section">
+            <h2>Coach Feedback</h2>
+            <p class="content feedback-box">{{ feedback }}</p>
+        </section>
+
+        <a href="{% url 'start_page' %}" class="retry-button">🔁 Try Another Interview</a>
+    </div>
+</body>
+</html>

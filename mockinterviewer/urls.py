@@ -15,11 +15,13 @@ Including another URLconf
     2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
 """
 
-from django.contrib import admin
 from django.urls import path
-from interview.views import mock_interview_view
+from interview import views  # or whatever your app is actually named
+
 
 urlpatterns = [
-    path("admin/", admin.site.urls),
-    path('', mock_interview_view, name='mock-interview'),
+    path('', views.start_page, name='start_page'),
+    path('interview/', views.interview_page, name='interview_page'),
+    path('transcribe/', views.transcribe_audio, name='transcribe_audio'),
+    path('feedback/', views.feedback_page, name='feedback_page'),
 ]

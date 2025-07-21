@@ -1,0 +1,17 @@
+<!-- templates/start.html -->
+{% load static %}
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Start Interview</title>
+    <link rel="stylesheet" href="{% static 'start.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to the Mock Interview App</h1>
+        <form action="{% url 'interview_page' %}" method="get">
+            <button type="submit">Start Interview</button>
+        </form>
+    </div>
+</body>
+</html>
