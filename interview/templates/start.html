@@ -9,8 +9,13 @@
 <body>
     <div class="container">
         <h1>Welcome to the Mock Interview App</h1>
+        <p>Select a category to begin your interview:</p>
+
         <form action="{% url 'interview_page' %}" method="get">
-            <button type="submit">Start Interview</button>
+            <button type="submit" name="category" value="behavioral">Behavioral Questions 🧠</button>
+            <button type="submit" name="category" value="situational">Situational Questions 🎭</button>
+            <button type="submit" name="category" value="technical">Technical Questions 🔧</button>
+            <button type="submit" name="category" value="motivational">Motivational Questions 🔥</button>
         </form>
     </div>
 </body>

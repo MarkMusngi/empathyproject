@@ -19,18 +19,36 @@ from pydub import AudioSegment
 
 logger = logging.getLogger(__name__)
 
-interview_questions = [
-    "Tell me about yourself.",
-    "What are your greatest strengths?",
-    "What are your weaknesses?",
-    "Why do you want to work here?",
-    "Where do you see yourself in five years?",
-    "Tell me about a challenge you faced and how you handled it.",
-    "Why should we hire you?",
-    "Describe a time you worked in a team.",
-    "What do you know about our company?",
-    "How do you handle pressure and stress?"
-]
+interview_questions = {
+    'behavioral': [
+        "Tell me about a time you had to work with a difficult colleague or team member. How did you handle it?",
+        "Describe a time when you had to make a quick decision with incomplete information.",
+        "Give an example of a project you led. What challenges did you face and how did you overcome them?",
+        "Talk about a time you failed. What did you learn from it?",
+        "Tell me about a time you had to adapt to a big change at work or school.",
+    ],
+    'situational': [
+        "What would you do if you saw a teammate taking credit for your work?",
+        "If you were given two urgent tasks by two supervisors, how would you prioritize?",
+        "How would you handle a situation where a key team member is underperforming close to a deadline?",
+        "Imagine you're presenting to a group and someone challenges your data in front of everyone. How would you respond?",
+        "What would you do if you realized your client misunderstood the software’s capabilities after you delivered the project?",
+    ],
+    'technical': [
+        "You’re asked to design a system for handling real-time data. How would you approach it?",
+        "You notice a bug in your teammate’s code that could cause data loss. What do you do?",
+        "You’re deploying an app and the production server crashes. Walk me through your response.",
+        "You’re assigned to maintain an unfamiliar legacy codebase with no documentation. How do you begin?",
+        "You need to optimize a feature that’s causing performance issues. How do you identify and resolve the bottleneck?",
+    ],
+    'motivational': [
+        "Why do you want this role?",
+        "Tell me about a time you were proud of your work. What made it meaningful?",
+        "What motivates you to keep going when the work gets tough or repetitive?",
+        "What kind of impact do you want to make in this field?",
+        "Describe your ideal work environment and why it brings out your best.",
+    ]
+}
 
 stop_event = threading.Event()
 detected_emotion = "neutral"
@@ -61,8 +79,11 @@ def start_page(request):
 # Interview page
 
 def interview_page(request):
-    question = random.choice(interview_questions)
+    category = request.GET.get('category', 'behavioral')  # Default to behavioral
+    questions = interview_questions.get(category, interview_questions['behavioral'])
+    question = random.choice(questions)
     request.session['question'] = question
+    request.session['category'] = category
 
     global stop_event
     stop_event.clear()
@@ -70,6 +91,7 @@ def interview_page(request):
     emotion_thread.start()
 
     return render(request, 'interview.html', {'question': question})
+
 
 # Audio transcription endpoint
 
@@ -134,7 +156,7 @@ def get_ollama_feedback(user_answer, question, emotion):
                     "Please also consider the speaker's detected emotional state (e.g., happy, neutral, sad, angry) "
                     "when offering your feedback. "
                     "If the speaker seems nervous or unconfident, give encouragement and suggest improvements. "
-                    "If they seem confident or enthusiastic, reinforce that positively."
+                    "If they seem confident or enthusiastic, reinforce that positively."    
                 )
             },
             {
