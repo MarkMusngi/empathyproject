@@ -33,3 +33,7 @@ Ensure you have the following installed:
    ollama pull mistral
 
 pip install opencv-python deepface SpeechRecognition requests pyaudio
+
+
+
+python manage.py runserver 127.0.0.1:8001
