@@ -1,0 +1,57 @@
+{
+  "behavioral": {
+    "leadership": [
+      "I led a team of developers through a challenging project deadline",
+      "I motivated team members by recognizing their contributions and providing clear direction",
+      "I delegated tasks based on each person's strengths while maintaining accountability",
+      "I facilitated team meetings to ensure everyone's voice was heard and conflicts were resolved",
+      "I mentored junior colleagues and helped them develop their technical skills"
+    ],
+    "problem_solving": [
+      "I analyzed the root cause by gathering data from multiple sources and stakeholders",
+      "I evaluated several alternative solutions considering time, cost, and technical constraints",
+      "I broke down the complex problem into smaller, manageable components",
+      "I collaborated with cross-functional teams to implement a comprehensive solution",
+      "I measured the results and adjusted the approach based on feedback and outcomes"
+    ],
+    "communication": [
+      "I presented complex technical concepts to non-technical stakeholders using analogies",
+      "I actively listened to concerns and asked clarifying questions to understand different perspectives",
+      "I documented the process clearly for future reference and team knowledge sharing",
+      "I provided regular updates to keep all stakeholders informed of progress and challenges",
+      "I facilitated productive discussions between conflicting parties to reach consensus"
+    ]
+  },
+  "technical": {
+    "system_design": [
+      "I designed a scalable architecture considering current needs and future growth",
+      "I evaluated trade-offs between performance, maintainability, and development speed",
+      "I implemented monitoring and logging to ensure system reliability and debugging capability",
+      "I chose appropriate technologies based on team expertise and project requirements",
+      "I documented the system design and created runbooks for operational support"
+    ],
+    "coding_practices": [
+      "I wrote clean, readable code following established patterns and conventions",
+      "I implemented comprehensive unit tests to ensure code reliability and prevent regressions",
+      "I conducted thorough code reviews focusing on logic, security, and performance",
+      "I refactored legacy code to improve maintainability while preserving functionality",
+      "I optimized database queries and application performance using profiling tools"
+    ]
+  },
+  "situational": {
+    "conflict_resolution": [
+      "I would first listen to all parties to understand their perspectives and concerns",
+      "I would identify common ground and shared objectives to build upon",
+      "I would facilitate a structured discussion to address specific issues constructively",
+      "I would propose solutions that balance different needs and priorities fairly",
+      "I would establish clear agreements and follow-up processes to prevent future conflicts"
+    ],
+    "priority_management": [
+      "I would assess the urgency and impact of each task using a structured framework",
+      "I would communicate with stakeholders to clarify expectations and negotiate deadlines",
+      "I would break down large tasks into smaller milestones to track progress effectively",
+      "I would delegate appropriate tasks to team members based on their skills and availability",
+      "I would regularly review and adjust priorities based on changing business needs"
+    ]
+  }
+}

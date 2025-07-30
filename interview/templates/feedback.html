@@ -2,378 +2,150 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Interview Feedback</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            line-height: 1.6;
-            color: #333;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .feedback-container {
-            max-width: 900px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            animation: slideUp 0.6s ease-out;
-        }
-
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        .header {
-            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
-            color: white;
-            padding: 30px;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header::before {
-            content: '';
-            position: absolute;
-            top: -50%;
-            left: -50%;
-            width: 200%;
-            height: 200%;
-            background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 70%);
-            animation: shimmer 3s ease-in-out infinite;
-        }
-
-        @keyframes shimmer {
-            0%, 100% { transform: rotate(0deg); }
-            50% { transform: rotate(180deg); }
-        }
-
-        .header h1 {
-            font-size: 2.5em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            position: relative;
-            z-index: 1;
-        }
-
-        .feedback-badge {
-            display: inline-flex;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.2);
-            padding: 8px 16px;
-            border-radius: 25px;
-            font-size: 0.9em;
-            font-weight: 500;
-            position: relative;
-            z-index: 1;
-            margin: 5px;
-        }
-
-        .badge-icon {
-            width: 20px;
-            height: 20px;
-            margin-right: 8px;
-            background: #ff6b6b;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 12px;
-        }
-
-        .question-section {
-            background: #f8fafc;
-            padding: 25px;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .question-title {
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 10px;
-        }
-
-        .question-text {
-            color: #4a5568;
-            font-style: italic;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            border-left: 4px solid #4a90e2;
-        }
-
-        .answer-section {
-            padding: 25px;
-            background: #f9fafb;
-            border-bottom: 1px solid #e2e8f0;
-        }
-
-        .answer-title {
-            font-size: 1.2em;
-            font-weight: 600;
-            color: #2d3748;
-            margin-bottom: 10px;
-        }
-
-        .answer-text {
-            color: #4a5568;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            border-left: 4px solid #48bb78;
-            line-height: 1.7;
-        }
-
-        .feedback-content {
-            padding: 40px;
-        }
-
-        .feedback-section {
-            background: #f8fafc;
-            border-left: 5px solid #4a90e2;
-            border-radius: 0 12px 12px 0;
-            padding: 30px;
-            margin-bottom: 30px;
-            position: relative;
-            transition: all 0.3s ease;
-        }
-
-        .feedback-section:hover {
-            transform: translateX(5px);
-            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-        }
-
-        .feedback-text {
-            color: #4a5568;
-            line-height: 1.8;
-            font-size: 1.05em;
-        }
-
-        .feedback-text h3 {
-            color: #2d3748;
-            margin: 20px 0 10px 0;
-            font-size: 1.2em;
-        }
-
-        .feedback-text strong {
-            color: #2d3748;
-            background: linear-gradient(120deg, #ffeaa7 0%, #fdcb6e 100%);
-            padding: 2px 6px;
-            border-radius: 4px;
-        }
-
-        .emotion-indicator {
-            display: inline-flex;
-            align-items: center;
-            background: rgba(72, 187, 120, 0.1);
-            color: #38a169;
-            padding: 8px 12px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            font-weight: 500;
-            margin: 10px 0;
-        }
-
-        .emotion-icon {
-            margin-right: 6px;
-            font-size: 1.1em;
-        }
-
-        .stats-section {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            display: flex;
-            justify-content: space-around;
-            text-align: center;
-        }
-
-        .stat-item {
-            flex: 1;
-        }
-
-        .stat-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .stat-label {
-            font-size: 0.85em;
-            opacity: 0.9;
-        }
-
-        .action-section {
-            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            padding: 30px;
-            text-align: center;
-        }
-
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .action-button {
-            background: white;
-            color: #38a169;
-            border: none;
-            padding: 15px 25px;
-            border-radius: 50px;
-            font-size: 1em;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-        }
-
-        .action-button:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.15);
-            background: #f7fafc;
-        }
-
-        .button-icon {
-            margin-right: 8px;
-            font-size: 1.1em;
-        }
-
-        @media (max-width: 768px) {
-            .feedback-container {
-                margin: 10px;
-                border-radius: 15px;
-            }
-            
-            .header {
-                padding: 20px;
-            }
-            
-            .header h1 {
-                font-size: 2em;
-            }
-            
-            .feedback-content, .question-section, .answer-section {
-                padding: 20px;
-            }
-            
-            .feedback-section {
-                padding: 20px;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
-            
-            .stats-section {
-                flex-direction: column;
-                gap: 15px;
-            }
-        }
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
+        h1, h2, h3 { color: #333; }
+        .feedback-box { border: 1px solid #ccc; border-radius: 6px; padding: 16px; background: #f9f9f9; }
+        .metric { margin-bottom: 10px; }
+        .status { margin-top: 10px; font-size: 0.9em; color: #666; }
     </style>
 </head>
 <body>
-    <div class="feedback-container">
-        <div class="header">
-            <h1>🎯 Interview Feedback</h1>
-            <div class="feedback-badge">
-                {% if feedback_type == "AI" %}
-                    <div class="badge-icon">🤖</div>
-                    AI Feedback
-                {% else %}
-                    <div class="badge-icon">💡</div>
-                    Smart Analysis
+    <h1>Interview Feedback</h1>
+    <div>
+        <h3>Question:</h3>
+        <p>{{ question }}</p>
+
+        <h3>Your Answer:</h3>
+        <p>{{ answer }}</p>
+
+        <h3>Detected Emotion:</h3>
+        <p>{{ emotion }}</p>
+
+        <h3>Role Level:</h3>
+        <p>{{ role_level|capfirst }}</p>
+
+        <h3>Category:</h3>
+        <p>{{ category|capfirst }}</p>
+    </div>
+
+    <div class="feedback-box">
+        <h3>Feedback Summary</h3>
+        <pre>{{ feedback }}</pre>
+    </div>
+
+    {% if metrics %}
+        <div>
+            <h3>Performance Metrics:</h3>
+                {% for key, value in metrics.items %}
+                    <div class="metric"><strong>{{ key|capfirst }}</strong>: {{ value }}</div>
+                {% endfor %}
+        </div>
+    {% endif %}
+
+    <div class="status">
+        Vectorizer: 
+        {% if vectorizer_available %}
+            ✅ Active
+        {% else %}
+            ⚠️ Not Available (Fallback Mode)
+        {% endif %}
+        <br>
+        Feedback Type: {{ feedback_type }}<br>
+        Processing Time: {{ processing_time }}
+    </div>
+    <div class="emotion-validation">
+        <h3>Emotion Analysis:</h3>
+        {% if validation_details %}
+            <div class="validation-details">
+                <p><strong>Detected:</strong> {{ validation_details.original_emotion }}</p>
+                <p><strong>Validated:</strong> {{ validation_details.validated_emotion }} 
+                ({{ validation_details.confidence_score|floatformat:1 }}% confidence)</p>
+                
+                {% if validation_details.flags %}
+                    <div class="validation-flags">
+                        <p><strong>Analysis Notes:</strong></p>
+                        <ul>
+                            {% for flag in validation_details.flags %}
+                                <li>{{ flag }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                {% endif %}
+                
+                <p><strong>Context:</strong> {{ validation_details.contextual_interpretation }}</p>
+                
+                {% if validation_details.adjustment_reason != "No adjustment needed" %}
+                    <p><strong>Adjustment:</strong> {{ validation_details.adjustment_reason }}</p>
                 {% endif %}
             </div>
-            <div class="feedback-badge">
-                <div class="badge-icon">📊</div>
-                {{ category|title }} Question
-            </div>
-        </div>
-        
-        <div class="question-section">
-            <div class="question-title">📋 Interview Question</div>
-            <div class="question-text">{{ question }}</div>
-        </div>
-
-        <div class="answer-section">
-            <div class="answer-title">💬 Your Answer</div>
-            <div class="answer-text">{{ answer }}</div>
-            <div class="emotion-indicator">
-                <span class="emotion-icon">
-                    {% if emotion == "happy" %}😊
-                    {% elif emotion == "sad" %}😔
-                    {% elif emotion == "angry" %}😠
-                    {% elif emotion == "fear" %}😰
-                    {% elif emotion == "surprise" %}😲
-                    {% elif emotion == "disgust" %}😖
-                    {% else %}😐{% endif %}
-                </span>
-                Detected Emotion: {{ emotion|title }}
-            </div>
-        </div>
-
-        {% if processing_time %}
-        <div class="stats-section">
-            <div class="stat-item">
-                <div class="stat-value">{{ answer|wordcount }}</div>
-                <div class="stat-label">Words</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">{{ processing_time }}</div>
-                <div class="stat-label">Processing Time</div>
-            </div>
-            <div class="stat-item">
-                <div class="stat-value">{{ emotion|title }}</div>
-                <div class="stat-label">Emotion</div>
-            </div>
-        </div>
+        {% else %}
+            <p>{{ emotion }} (Basic detection)</p>
         {% endif %}
         
-        <div class="feedback-content">
-            <div class="feedback-section">
-                <div class="feedback-text">
-                    {{ feedback|linebreaks }}
-                </div>
+        <!-- Emotion correction form -->
+        {% if validator_available %}
+            <div class="emotion-correction">
+                <p>Was this emotion detection accurate?</p>
+                <form id="emotion-correction-form">
+                    <select name="corrected_emotion">
+                        <option value="">Select correct emotion...</option>
+                        <option value="neutral">Neutral</option>
+                        <option value="happy">Happy</option>
+                        <option value="sad">Sad</option>
+                        <option value="angry">Focused/Intense</option>
+                        <option value="fear">Nervous</option>
+                        <option value="surprise">Surprised</option>
+                    </select>
+                    <button type="submit">Submit Correction</button>
+                </form>
             </div>
-        </div>
-
-        <div class="action-section">
-            <div class="action-buttons">
-                <a href="{% url 'start_page' %}" class="action-button">
-                    <span class="button-icon">🔄</span>
-                    Try Another Interview
-                </a>
-                <a href="{% url 'interview_page' %}?category={{ category }}" class="action-button">
-                    <span class="button-icon">🎯</span>
-                    Same Category
-                </a>
-            </div>
-        </div>
+        {% endif %}
     </div>
+
+    <!-- Add this JavaScript before closing </body> tag -->
+    <script>
+    // Emotion correction handling
+    document.getElementById('emotion-correction-form')?.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const correctedEmotion = this.corrected_emotion.value;
+        if (!correctedEmotion) return;
+        
+        fetch('/correct-emotion/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: `original_emotion={{ emotion }}&corrected_emotion=${correctedEmotion}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Thank you for the feedback! This helps improve emotion detection.');
+                this.style.display = 'none';
+            }
+        })
+        .catch(error => console.error('Correction failed:', error));
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    </script>
+
 </body>
 </html>

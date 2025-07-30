@@ -29,6 +29,18 @@
             <p id="transcript-output"></p>
         </div>
 
+        
+        <div class="role-selection">
+            <label for="role_level">Select Role Level:</label>
+            <select name="role_level" id="role_level">
+                <option value="junior" {% if role_level == 'junior' %}selected{% endif %}>Junior</option>
+                <option value="mid" {% if role_level == 'mid' %}selected{% endif %}>Mid</option>
+                <option value="senior" {% if role_level == 'senior' %}selected{% endif %}>Senior</option>
+                <option value="lead" {% if role_level == 'lead' %}selected{% endif %}>Lead</option>
+            </select>
+        </div>
+
+
         <form id="transcribe-form" action="{% url 'feedback_page' %}" method="get">
             <input type="hidden" name="transcript" id="transcript-input">
             <button type="submit" id="goto-feedback" style="display: none;">Go to Feedback</button>
@@ -42,6 +54,34 @@
 
         let recognition;
         let finalTranscript = "";
+        let lastTextUpdate = 0;
+        let currentTranscript = "";
+
+        function updateAnswerText() {
+            const now = Date.now();
+            if (now - lastTextUpdate > 2000 && currentTranscript.length > 10) { // Update every 2 seconds
+                fetch('/update-answer-text/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: 'text=' + encodeURIComponent(currentTranscript)
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.validated_emotion) {
+                        console.log('Emotion validated:', data.validated_emotion, 'Confidence:', data.confidence);
+                        if (data.flags && data.flags.length > 0) {
+                            console.log('Validation flags:', data.flags);
+                        }
+                    }
+                })
+                .catch(error => console.log('Validation update failed:', error));
+                
+                lastTextUpdate = now;
+            }
+        }
 
         function startRecognition() {
             if (!('webkitSpeechRecognition' in window)) {
@@ -67,8 +107,13 @@
                     }
                 }
 
-                outputEl.innerText = finalTranscript + interimTranscript;
+                currentTranscript = finalTranscript + interimTranscript;
+                
+                outputEl.innerText = currentTranscript;
                 inputEl.value = finalTranscript.trim();
+                
+                // Update answer text for real-time validation
+                updateAnswerText();
             };
 
             recognition.onerror = function(event) {
@@ -94,6 +139,37 @@
         }).catch(err => {
             console.error("Webcam error:", err);
         });
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        function checkEmotionStatus() {
+            fetch('/emotion-status/')
+            .then(response => response.json())
+            .then(data => {
+                if (data.validated_emotion && data.validated_emotion !== 'neutral') {
+                    const statusEl = document.getElementById('emotion-status');
+                    if (statusEl) {
+                        statusEl.innerText = `Emotion: ${data.validated_emotion} (${Math.round(data.confidence * 100)}% confidence)`;
+                    }
+                }
+            })
+            .catch(error => console.log('Emotion status check failed:', error));
+        }
+
+        // Check emotion status every 5 seconds
+        setInterval(checkEmotionStatus, 5000);
     </script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-# Enhanced views.py with camera fallback and better Windows compatibility
+# Enhanced views.py with vectorizer integration and cleanup
 import os
 import cv2
 import tempfile
@@ -19,8 +19,36 @@ from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 from deepface import DeepFace
 from pydub import AudioSegment
+from collections import Counter
+from .emotion_validator import get_emotion_validator, EmotionValidation
+
+
+# Import the content vectorizer
+from .content_vectorizer import ContentVectorizer, SemanticScore
+
 
 logger = logging.getLogger(__name__)
+
+# Global vectorizer instance - initialize once when Django starts
+_vectorizer_instance = None
+validated_emotion = "neutral"
+emotion_confidence = 1.0
+current_answer_text = ""
+
+
+def get_vectorizer():
+    """Singleton pattern for vectorizer - initialize once, use throughout app"""
+    global _vectorizer_instance
+    if _vectorizer_instance is None:
+        try:
+            # Use Django's media/cache directory for vectors
+            cache_dir = os.path.join(os.path.dirname(__file__), 'vector_cache')
+            _vectorizer_instance = ContentVectorizer(cache_dir=cache_dir)
+            logger.info("Content vectorizer initialized successfully")
+        except Exception as e:
+            logger.error(f"Failed to initialize vectorizer: {e}")
+            _vectorizer_instance = None
+    return _vectorizer_instance
 
 # Camera configuration for Windows
 def configure_camera_for_windows():
@@ -134,34 +162,39 @@ def check_camera_availability():
         return None
 
 def detect_emotion_live():
-    """Enhanced emotion detection with multiple backend support"""
-    global detected_emotion, camera_available
+    """Enhanced emotion detection with real-time validation"""
+    global detected_emotion, validated_emotion, emotion_confidence, camera_available, current_answer_text
     
     working_backend = check_camera_availability()
     if working_backend is None:
         logger.warning("Skipping emotion detection - no working camera backend")
         detected_emotion = "neutral"
+        validated_emotion = "neutral"
         return
     
     cap = None
+    validator = get_emotion_validator()
+    
     try:
         cap = cv2.VideoCapture(0, working_backend)
         if not cap.isOpened():
             logger.warning("Could not open camera for emotion detection")
             detected_emotion = "neutral"
+            validated_emotion = "neutral"
             return
         
         # Set optimal camera properties
         cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
-        cap.set(cv2.CAP_PROP_FPS, 5)  # Lower FPS to reduce load
-        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)   # Lower resolution
-        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)  # Lower resolution
+        cap.set(cv2.CAP_PROP_FPS, 5)
+        cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 480)
         
         consecutive_failures = 0
-        max_failures = 3  # Reduced threshold
+        max_failures = 3
         emotion_update_counter = 0
+        last_validation_time = 0
         
-        logger.info("Starting emotion detection loop")
+        logger.info("Starting enhanced emotion detection with validation")
         
         while not stop_event.is_set():
             try:
@@ -179,19 +212,45 @@ def detect_emotion_live():
                 
                 # Only analyze emotion every few frames to reduce load
                 emotion_update_counter += 1
-                if emotion_update_counter % 5 == 0:  # Update every 5th frame
+                if emotion_update_counter % 5 == 0:
                     try:
                         result = DeepFace.analyze(frame, actions=['emotion'], enforce_detection=False)
                         if result and len(result) > 0:
-                            new_emotion = result[0].get('dominant_emotion', 'neutral')
-                            if new_emotion != detected_emotion:
-                                detected_emotion = new_emotion
-                                logger.info(f"Emotion updated to: {detected_emotion}")
+                            raw_emotion = result[0].get('dominant_emotion', 'neutral')
+                            
+                            # Update detected emotion
+                            if raw_emotion != detected_emotion:
+                                detected_emotion = raw_emotion
+                                logger.info(f"Raw emotion detected: {detected_emotion}")
+                            
+                            # Validate emotion every 3 seconds if we have text
+                            current_time = time.time()
+                            if (validator and current_answer_text and 
+                                current_time - last_validation_time > 3.0):
+                                
+                                validation = validator.validate_emotion(
+                                    detected_emotion, current_answer_text
+                                )
+                                
+                                validated_emotion = validation.validated_emotion
+                                emotion_confidence = validation.confidence_score
+                                
+                                if validation.flags:
+                                    logger.info(f"Validation flags: {validation.flags}")
+                                
+                                if detected_emotion != validated_emotion:
+                                    logger.info(f"Emotion adjusted: {detected_emotion} -> {validated_emotion} "
+                                              f"(confidence: {emotion_confidence:.3f})")
+                                
+                                last_validation_time = current_time
+                            else:
+                                # No validation yet, use raw emotion
+                                validated_emotion = detected_emotion
+                                emotion_confidence = 0.7  # Default confidence
+                                
                     except Exception as e:
                         logger.warning(f"DeepFace analysis error: {e}")
-                        # Don't increment consecutive_failures for DeepFace errors
                 
-                # Longer delay to reduce system load
                 time.sleep(0.2)
                 
             except Exception as e:
@@ -206,6 +265,7 @@ def detect_emotion_live():
     except Exception as e:
         logger.error(f"Emotion detection setup error: {e}")
         detected_emotion = "neutral"
+        validated_emotion = "neutral"
     
     finally:
         if cap is not None:
@@ -215,7 +275,83 @@ def detect_emotion_live():
             except Exception as e:
                 logger.error(f"Error releasing camera: {e}")
     
-    logger.info("Emotion detection thread ended")
+    logger.info("Enhanced emotion detection thread ended")
+
+@csrf_exempt
+def update_answer_text(request):
+    """Update current answer text for real-time emotion validation"""
+    global current_answer_text
+    
+    if request.method == "POST":
+        text = request.POST.get('text', '')
+        current_answer_text = text
+        
+        # Get current validation if validator is available
+        validator = get_emotion_validator()
+        if validator and text and len(text.strip()) > 10:
+            validation = validator.validate_emotion(detected_emotion, text)
+            global validated_emotion, emotion_confidence
+            validated_emotion = validation.validated_emotion
+            emotion_confidence = validation.confidence_score
+            
+            return JsonResponse({
+                'success': True,
+                'validated_emotion': validated_emotion,
+                'confidence': emotion_confidence,
+                'flags': validation.flags,
+                'interpretation': validation.contextual_interpretation
+            })
+        
+        return JsonResponse({'success': True, 'message': 'Text updated'})
+    
+    return JsonResponse({'error': 'Invalid request method'})
+
+# ADD THIS NEW FUNCTION
+@csrf_exempt
+def get_emotion_status(request):
+    """Get current emotion status with validation info"""
+    validator = get_emotion_validator()
+    
+    response_data = {
+        'detected_emotion': detected_emotion,
+        'validated_emotion': validated_emotion,
+        'confidence': emotion_confidence,
+        'validator_available': validator is not None
+    }
+    
+    if validator:
+        stats = validator.get_validation_stats()
+        response_data['validation_stats'] = stats
+    
+    return JsonResponse(response_data)
+
+# ADD THIS NEW FUNCTION
+@csrf_exempt
+def correct_emotion(request):
+    """Allow users to correct emotion detection for learning"""
+    if request.method == "POST":
+        original_emotion = request.POST.get('original_emotion', detected_emotion)
+        corrected_emotion = request.POST.get('corrected_emotion')
+        
+        if corrected_emotion:
+            validator = get_emotion_validator()
+            if validator:
+                validator.update_user_feedback(original_emotion, corrected_emotion)
+                logger.info(f"User corrected emotion: {original_emotion} -> {corrected_emotion}")
+            
+            # Update current emotion
+            global validated_emotion
+            validated_emotion = corrected_emotion
+            
+            return JsonResponse({
+                'success': True,
+                'message': 'Emotion correction recorded',
+                'new_emotion': corrected_emotion
+            })
+        
+        return JsonResponse({'error': 'Missing corrected emotion'})
+    
+    return JsonResponse({'error': 'Invalid request method'})
 
 def start_page(request):
     return render(request, 'start.html')
@@ -254,7 +390,6 @@ def interview_page(request):
         'emotion_detection_enabled': emotion_detection_enabled
     })
 
-# Add a new endpoint to manually set emotion
 @csrf_exempt
 def set_emotion(request):
     """Allow manual emotion setting if camera is not available"""
@@ -304,8 +439,8 @@ def transcribe_audio(request):
             recognizer = sr.Recognizer()
             with sr.AudioFile(wav_path) as source:
                 audio_data = recognizer.record(source)
-                transcript = recognizer.recognize_google(audio_data)
-
+                transcript = recognizer.recognize_google(audio_data, language='fil-PH')
+                
             logger.info(f"Transcription successful: {transcript[:50]}...")
             return JsonResponse({'transcript': transcript})
             
@@ -329,470 +464,376 @@ def transcribe_audio(request):
     
     return JsonResponse({'error': 'Invalid request method'})
 
-
-def analyze_star_framework(answer):
-    """Analyze how well the answer follows STAR framework"""
+# CONTENT ANALYSIS FUNCTIONS (Enhanced with vectorization)
+def analyze_answer_content(answer, question):
+    """Deep content analysis of the answer - enhanced for vectorizer integration"""
+    analysis = {
+        'key_phrases': [],
+        'specific_examples': [],
+        'action_words': [],
+        'outcome_words': [],
+        'context_provided': False,
+        'quantifiable_results': [],
+        'skills_mentioned': [],
+        'challenges_discussed': [],
+        'learning_mentioned': False
+    }
+    
     answer_lower = answer.lower()
     
-    situation_words = ['when', 'time', 'situation', 'project', 'experience', 'while', 'during']
-    task_words = ['needed', 'had to', 'responsible', 'task', 'goal', 'objective']
-    action_words = ['i did', 'i took', 'i decided', 'i implemented', 'i created', 'i organized']
-    result_words = ['result', 'outcome', 'achieved', 'improved', 'increased', 'successful']
+    # Split into sentences
+    sentences = answer.split('.')
     
-    situation_score = sum(1 for word in situation_words if word in answer_lower)
-    task_score = sum(1 for word in task_words if word in answer_lower)
-    action_score = sum(1 for word in action_words if word in answer_lower)
-    result_score = sum(1 for word in result_words if word in answer_lower)
+    # Extract specific examples and stories
+    story_indicators = [
+        r'when i (?:was|worked|had to|needed to|decided to)',
+        r'there was a time (?:when|that)',
+        r'in my (?:previous|last|current) (?:job|role|position)',
+        r'at (?:my|a) (?:company|workplace|job)',
+        r'i remember (?:when|a time)',
+        r'for example',
+        r'specifically'
+    ]
     
-    missing = []
-    if situation_score == 0: missing.append("Situation context")
-    if task_score == 0: missing.append("Task/responsibility")
-    if action_score == 0: missing.append("Specific actions")
-    if result_score == 0: missing.append("Results/outcomes")
+    for pattern in story_indicators:
+        matches = re.findall(pattern, answer_lower)
+        if matches:
+            analysis['context_provided'] = True
+            break
     
-    if not missing:
-        return "Excellent! You covered all STAR elements (Situation, Task, Action, Result)."
-    elif len(missing) == 1:
-        return f"Good structure! Consider adding more detail about: {missing[0]}."
-    else:
-        return f"Consider strengthening these STAR elements: {', '.join(missing)}."
+    # Extract quantifiable results
+    number_patterns = [
+        r'\d+%',  # percentages
+        r'\$\d+',  # money
+        r'\d+ (?:people|team members|clients|users|projects)',
+        r'(?:increased|decreased|improved|reduced) by \d+',
+        r'\d+ (?:days|weeks|months|years)',
+        r'\d+ (?:hours|minutes)'
+    ]
+    
+    for pattern in number_patterns:
+        matches = re.findall(pattern, answer_lower)
+        analysis['quantifiable_results'].extend(matches)
+    
+    # Extract action words (what they actually did)
+    action_patterns = [
+        r'i (?:created|built|designed|implemented|organized|led|managed|developed|solved|analyzed|negotiated|presented|collaborated|coordinated|researched|optimized)',
+        r'i (?:decided|chose|recommended|proposed|initiated|established|streamlined|restructured|facilitated|mentored)'
+    ]
+    
+    for pattern in action_patterns:
+        matches = re.findall(pattern, answer_lower)
+        analysis['action_words'].extend([match.replace('i ', '') for match in matches])
+    
+    # Extract outcome/result words
+    outcome_patterns = [
+        r'(?:as a )?result',
+        r'(?:this|it) (?:led to|resulted in|caused|helped|improved)',
+        r'(?:we|i) (?:achieved|accomplished|delivered|completed|succeeded)',
+        r'(?:the outcome|the result) was',
+        r'(?:ultimately|finally|in the end)'
+    ]
+    
+    for pattern in outcome_patterns:
+        if re.search(pattern, answer_lower):
+            analysis['outcome_words'].append(pattern)
+    
+    # Check for learning/growth mentions
+    learning_indicators = ['learned', 'discovered', 'realized', 'understood', 'gained insight', 'now i know', 'next time', 'in future']
+    analysis['learning_mentioned'] = any(indicator in answer_lower for indicator in learning_indicators)
+    
+    # Extract potential skills/technologies mentioned
+    common_skills = [
+        'leadership', 'communication', 'problem-solving', 'teamwork', 'project management',
+        'python', 'javascript', 'react', 'sql', 'aws', 'docker', 'git',
+        'agile', 'scrum', 'data analysis', 'machine learning', 'apis'
+    ]
+    
+    for skill in common_skills:
+        if skill in answer_lower:
+            analysis['skills_mentioned'].append(skill)
+    
+    # Identify challenges/problems discussed
+    challenge_indicators = [
+        'challenge', 'problem', 'issue', 'difficulty', 'obstacle', 'setback',
+        'conflict', 'disagreement', 'tight deadline', 'limited resources'
+    ]
+    
+    for indicator in challenge_indicators:
+        if indicator in answer_lower:
+            analysis['challenges_discussed'].append(indicator)
+    
+    return analysis
 
-def analyze_problem_solving(answer):
-    """Analyze problem-solving approach in situational questions"""
-    answer_lower = answer.lower()
+def enhanced_analyze_answer_content(answer, question, category="behavioral", role_level="mid"):
+    """
+    Enhanced version combining existing analysis with semantic vectorization
+    """
     
-    understanding_words = ['understand', 'analyze', 'assess', 'evaluate', 'consider']
-    options_words = ['option', 'alternative', 'approach', 'solution', 'choice']
-    reasoning_words = ['because', 'since', 'therefore', 'reason', 'due to']
+    # Get existing analysis first
+    existing_analysis = analyze_answer_content(answer, question)
     
-    understanding = any(word in answer_lower for word in understanding_words)
-    options = any(word in answer_lower for word in options_words)
-    reasoning = any(word in answer_lower for word in reasoning_words)
+    # Try to get semantic analysis
+    vectorizer = get_vectorizer()
+    if vectorizer:
+        try:
+            semantic_score = vectorizer.analyze_answer_semantics(answer, category, role_level)
+            
+            # Generate contextualized feedback
+            semantic_feedback = vectorizer.generate_contextualized_feedback(
+                semantic_score, category, role_level, word_limit=180
+            )
+            
+            # Enhance existing analysis with semantic data
+            enhanced_analysis = {
+                **existing_analysis,  # Keep all existing analysis
+                'semantic_analysis': {
+                    'content_coverage': semantic_score.content_coverage,
+                    'depth_score': semantic_score.depth_score,
+                    'relevance_score': semantic_score.relevance_score,
+                    'leadership_indicators': semantic_score.leadership_indicators,
+                    'problem_solving_indicators': semantic_score.problem_solving_indicators,
+                    'technical_depth': semantic_score.technical_depth,
+                    'communication_clarity': semantic_score.communication_clarity,
+                    'semantic_gaps': semantic_score.gaps,
+                    'semantic_strengths': semantic_score.strengths,
+                    'semantic_feedback': semantic_feedback
+                },
+                'overall_score': calculate_overall_score(semantic_score, existing_analysis),
+                'enhanced_feedback': generate_combined_feedback(existing_analysis, semantic_score, category)
+            }
+            
+            logger.info(f"Enhanced analysis completed - Overall score: {enhanced_analysis['overall_score']:.2f}")
+            return enhanced_analysis
+            
+        except Exception as e:
+            logger.warning(f"Semantic analysis failed, using basic analysis: {e}")
     
-    if understanding and options and reasoning:
-        return "Great problem-solving structure! You showed understanding, considered options, and provided reasoning."
-    else:
-        missing = []
-        if not understanding: missing.append("situation analysis")
-        if not options: missing.append("alternative approaches")
-        if not reasoning: missing.append("clear reasoning")
-        return f"Good start! Consider adding more about: {', '.join(missing)}."
+    # Fallback to existing analysis if vectorizer fails
+    logger.info("Using basic analysis only")
+    return {
+        **existing_analysis,
+        'semantic_analysis': None,
+        'overall_score': 0.6,  # Default score
+        'enhanced_feedback': "Basic analysis completed successfully."
+    }
 
-def analyze_technical_approach(answer):
-    """Analyze technical thinking"""
-    answer_lower = answer.lower()
+def calculate_overall_score(semantic_score: SemanticScore, existing_analysis: dict) -> float:
+    """Calculate a comprehensive score combining semantic and traditional analysis"""
     
-    technical_words = ['system', 'design', 'implement', 'architecture', 'performance', 'scale']
-    process_words = ['first', 'then', 'next', 'finally', 'step']
-    consideration_words = ['trade-off', 'consider', 'balance', 'optimize', 'constraint']
+    # Semantic components (60% weight)
+    semantic_weight = 0.6
+    semantic_avg = (
+        semantic_score.content_coverage +
+        semantic_score.depth_score +
+        semantic_score.relevance_score +
+        semantic_score.communication_clarity
+    ) / 4
     
-    technical = any(word in answer_lower for word in technical_words)
-    process = any(word in answer_lower for word in process_words)
-    considerations = any(word in answer_lower for word in consideration_words)
+    # Traditional analysis components (40% weight)
+    traditional_weight = 0.4
+    traditional_score = 0.6  # Default
     
-    strengths = []
-    if technical: strengths.append("technical terminology")
-    if process: strengths.append("systematic approach")
-    if considerations: strengths.append("trade-off awareness")
+    # Extract scores from existing analysis if available
+    if 'quantifiable_results' in existing_analysis and existing_analysis['quantifiable_results']:
+        traditional_score += 0.1
+    if 'action_words' in existing_analysis and len(existing_analysis['action_words']) >= 2:
+        traditional_score += 0.1
+    if 'context_provided' in existing_analysis and existing_analysis['context_provided']:
+        traditional_score += 0.1
+    if 'learning_mentioned' in existing_analysis and existing_analysis['learning_mentioned']:
+        traditional_score += 0.1
     
-    if len(strengths) >= 2:
-        return f"Strong technical thinking! You demonstrated {' and '.join(strengths)}."
-    else:
-        return "Good technical foundation. Consider adding more systematic thinking and trade-off discussions."
+    traditional_score = min(traditional_score, 1.0)
+    
+    # Combine scores
+    overall = (semantic_avg * semantic_weight) + (traditional_score * traditional_weight)
+    return min(overall, 1.0)
 
-def analyze_motivation(answer):
-    """Analyze motivational elements"""
-    answer_lower = answer.lower()
+def generate_combined_feedback(existing_analysis: dict, semantic_score: SemanticScore, category: str) -> str:
+    """Generate comprehensive feedback combining traditional and semantic analysis"""
     
-    passion_words = ['passionate', 'excited', 'love', 'enjoy', 'motivate']
-    values_words = ['value', 'important', 'believe', 'principle']
-    growth_words = ['learn', 'grow', 'develop', 'improve', 'challenge']
+    feedback_parts = []
     
-    passion = any(word in answer_lower for word in passion_words)
-    values = any(word in answer_lower for word in values_words)
-    growth = any(word in answer_lower for word in growth_words)
-    
-    if passion and values and growth:
-        return "Excellent! You showed genuine passion, clear values, and growth mindset."
+    # Content quality assessment
+    if semantic_score.content_coverage >= 0.7:
+        feedback_parts.append("📊 Strong content alignment with interview expectations.")
+    elif semantic_score.content_coverage >= 0.5:
+        feedback_parts.append("📊 Good content foundation with room for enhancement.")
     else:
-        suggestions = []
-        if not passion: suggestions.append("express more enthusiasm")
-        if not values: suggestions.append("connect to your values")
-        if not growth: suggestions.append("mention learning/growth goals")
-        return f"Good foundation! Consider: {', '.join(suggestions)}."
+        feedback_parts.append("📊 Content needs significant strengthening.")
+    
+    # Combine semantic strengths with traditional analysis
+    combined_strengths = []
+    if semantic_score.leadership_indicators >= 0.6:
+        combined_strengths.append("leadership presence")
+    if semantic_score.problem_solving_indicators >= 0.6:
+        combined_strengths.append("problem-solving approach")
+    if semantic_score.technical_depth >= 0.6:
+        combined_strengths.append("technical depth")
+    if existing_analysis.get('quantifiable_results'):
+        combined_strengths.append("quantified impact")
+    
+    if combined_strengths:
+        feedback_parts.append(f"✅ Strengths: {', '.join(combined_strengths[:3])}.")
+    
+    # Combined improvement areas
+    improvements = []
+    if semantic_score.content_coverage < 0.5:
+        improvements.append("strengthen core content themes")
+    if semantic_score.depth_score < 0.5:
+        improvements.append("add more specific details")
+    if not existing_analysis.get('context_provided'):
+        improvements.append("provide clearer situation context")
+    if semantic_score.communication_clarity < 0.6:
+        improvements.append("improve answer structure")
+    
+    if improvements:
+        feedback_parts.append(f"🎯 Focus areas: {', '.join(improvements[:3])}.")
+    
+    # Category-specific advice
+    if category == 'behavioral' and semantic_score.leadership_indicators < 0.4:
+        feedback_parts.append("💼 Behavioral tip: Emphasize your personal actions and leadership role.")
+    elif category == 'technical' and semantic_score.technical_depth < 0.5:
+        feedback_parts.append("🔧 Technical tip: Include specific technologies and implementation details.")
+    
+    return " ".join(feedback_parts)
 
-def get_emotion_feedback(emotion):
-    """Provide feedback based on detected emotion"""
-    emotion_feedback = {
-        'neutral': "You maintained a calm, professional demeanor throughout your response.",
+def get_detailed_emotion_feedback(emotion, answer):
+    """More nuanced emotion feedback based on content"""
+    word_count = len(answer.split())
+    
+    base_feedback = {
+        'neutral': "Professional demeanor maintained throughout your response.",
         'happy': "Your positive energy came through well! This enthusiasm is great for interviews.",
         'sad': "You seemed a bit subdued. Try to project more energy and confidence in your delivery.",
         'angry': "You appeared tense. Take deep breaths and focus on staying calm and composed.",
-        'fear': "Some nervousness is normal! Practice will help build confidence. Focus on your achievements.",
+        'fear': "Some nervousness detected - this is normal! Practice will help build confidence.",
         'surprise': "You seemed caught off-guard. Take a moment to collect your thoughts before answering.",
         'disgust': "You appeared uncomfortable. Try to maintain a more positive, engaged expression."
     }
-
-def generate_example_improvement(answer, category):
-    """Generate a specific example of how to improve part of the answer"""
     
-    examples = {
-        'behavioral': "Instead of 'I worked on a project', try 'I led a 5-person team to deliver a customer portal that increased user satisfaction by 30% over 3 months.'",
-        'situational': "Instead of 'I would talk to them', try 'I would schedule a private conversation to understand their perspective, then work together on a solution that addresses both our concerns.'",
-        'technical': "Instead of 'I would fix the bug', try 'I would first reproduce the issue, analyze the root cause using debugging tools, implement a targeted fix, and add unit tests to prevent regression.'",
-        'motivational': "Instead of 'I want to grow', try 'I'm excited about this role because it combines my passion for user experience with my goal of leading product strategy in a data-driven environment.'"
-    }
+    feedback = base_feedback.get(emotion, "Maintain professional composure")
     
-    return examples.get(category, "Add more specific details and concrete examples to make your answer more compelling.")
-
-# OLLAMA INTEGRATION FUNCTIONS
-def get_ollama_feedback(user_answer, question, emotion, category="behavioral"):
-    """Optimized feedback function with shorter, faster prompts"""
-    logger.info("Submitting response to LLM for feedback...")
-    logger.info(f"Detected Emotion: {emotion}")
-
-    # Simplified category frameworks - much shorter
-    frameworks = {
-        'behavioral': 'STAR: Situation, Task, Action, Result',
-        'situational': 'Problem-solving: Understand, Options, Choice, Reasoning',
-        'technical': 'Technical: Problem, Approach, Implementation, Trade-offs',
-        'motivational': 'Values: Motivation, Alignment, Knowledge, Vision'
-    }
-
-    framework = frameworks.get(category, frameworks['behavioral'])
-
-    url = "http://localhost:11434/api/chat"
+    # Add specific delivery advice based on content length and emotion
+    if word_count < 30 and emotion in ['fear', 'sad']:
+        feedback += " Your brief response combined with this emotion suggests you might need more preparation. Practice your stories out loud."
+    elif word_count > 150 and emotion == 'neutral':
+        feedback += " Good detail level with calm delivery - this shows confidence in your experience."
+    elif emotion == 'happy' and 'challenge' in answer.lower():
+        feedback += " Excellent - your positive attitude when discussing challenges shows resilience."
     
-    # Much shorter, focused prompt
-    payload = {
-        "model": "mistral",
-        "stream": False,
-        "messages": [
-            {
-                "role": "system",
-                "content": f"You are an interview coach. Evaluate {category} interview answers using {framework}. Be encouraging but specific about improvements. Keep feedback concise and actionable."
-            },
-            {
-                "role": "user",
-                "content": f"Question: {question}\nAnswer: {user_answer}\nEmotion: {emotion}\n\nProvide brief feedback on:\n1. Framework usage\n2. Strengths\n3. Missing elements\n4. Specific improvements\n5. Emotion impact"
-            }
-        ]
-    }
+    return feedback
 
-    # Enhanced connection handling
-    max_retries = 2  # Reduced retries
-    timeout = 45     # Reduced timeout
+# MAIN FEEDBACK FUNCTIONS
+def get_vectorized_feedback_with_fallback(user_answer, question, emotion, category="behavioral", role_level="mid"):
+    """
+    New main feedback function using vectorization when available, falls back gracefully
+    """
     
-    for attempt in range(max_retries):
+    start_time = time.time()
+    
+    # Try vectorized analysis first
+    vectorizer = get_vectorizer()
+    if vectorizer:
         try:
-            logger.info(f"Connecting to Ollama (attempt {attempt + 1}/{max_retries})")
+            # Get enhanced analysis
+            enhanced_analysis = enhanced_analyze_answer_content(
+                user_answer, question, category, role_level
+            )
             
-            # Check if Ollama is responsive first
-            try:
-                health_check = requests.get("http://localhost:11434/api/tags", timeout=5)
-                if health_check.status_code != 200:
-                    logger.warning("Ollama health check failed")
-                    return "Ollama service is not responding properly. Please restart Ollama and try again."
-            except requests.exceptions.RequestException:
-                logger.warning("Cannot reach Ollama service")
-                return "Cannot connect to Ollama. Please ensure it's running with 'ollama serve' and try again."
+            # Generate comprehensive feedback
+            feedback_parts = []
             
-            # Make the actual request
-            response = requests.post(url, json=payload, timeout=timeout)
-            response.raise_for_status()
-            
-            result = response.json()
-            if 'message' in result and 'content' in result['message']:
-                logger.info("Feedback received successfully")
-                return result['message']['content']
+            # Overall assessment
+            overall_score = enhanced_analysis.get('overall_score', 0.6)
+            if overall_score >= 0.8:
+                feedback_parts.append("🌟 Excellent Response Quality")
+            elif overall_score >= 0.6:
+                feedback_parts.append("👍 Solid Response Foundation")
             else:
-                logger.warning(f"Unexpected response format: {result}")
-                return "Received response but format was unexpected. Please try again."
-                
-        except requests.exceptions.Timeout:
-            logger.warning(f"Request timed out on attempt {attempt + 1}")
-            if attempt == max_retries - 1:
-                return f"Request timed out after {timeout} seconds. Your answer might be too long, or Ollama is overloaded. Try a shorter response or restart Ollama."
-                
-        except requests.exceptions.ConnectionError:
-            logger.warning(f"Connection failed on attempt {attempt + 1}")
-            if attempt == max_retries - 1:
-                return "Connection failed. Please check that Ollama is running with 'ollama serve' and try again."
-                
-        except requests.exceptions.HTTPError as e:
-            logger.error(f"HTTP error: {e}")
-            if attempt == max_retries - 1:
-                return f"Server error ({e.response.status_code}). Please try again or restart Ollama."
-                
+                feedback_parts.append("📈 Response Needs Enhancement")
+            
+            # Add enhanced feedback
+            if enhanced_analysis.get('enhanced_feedback'):
+                feedback_parts.append(enhanced_analysis['enhanced_feedback'])
+            
+            # Add semantic insights if available
+            semantic_analysis = enhanced_analysis.get('semantic_analysis')
+            if semantic_analysis and semantic_analysis.get('semantic_feedback'):
+                feedback_parts.append(f"🧠 Semantic Analysis: {semantic_analysis['semantic_feedback']}")
+            
+            # Add emotion feedback
+            emotion_feedback = get_detailed_emotion_feedback(emotion, user_answer)
+            feedback_parts.append(f"🎭 Delivery: {emotion_feedback}")
+            
+            # Performance metrics
+            processing_time = time.time() - start_time
+            logger.info(f"Vectorized feedback completed in {processing_time:.2f}s")
+            
+            return "\n\n".join(feedback_parts)
+            
         except Exception as e:
-            logger.error(f"Unexpected error: {e}")
-            if attempt == max_retries - 1:
-                return f"Unexpected error occurred: {str(e)}"
-        
-        # Short wait before retry
-        if attempt < max_retries - 1:
-            time.sleep(2)
-
-    return "Failed to get feedback. Please ensure Ollama is running and try again."
-
-# Alternative: Even more minimal version if still timing out
-def get_minimal_ollama_feedback(user_answer, question, emotion, category="behavioral"):
-    """Ultra-minimal version for faster processing"""
-    logger.info("Using minimal feedback mode")
+            logger.warning(f"Vectorized feedback failed: {e}, falling back to basic analysis")
     
-    url = "http://localhost:11434/api/chat"
+    # Fallback to basic feedback
+    logger.info("Using basic feedback system")
+    return get_basic_feedback(user_answer, question, emotion, category)
+
+def get_basic_feedback(user_answer, question, emotion, category):
+    """Basic feedback when vectorizer is not available"""
     
-    # Extremely short prompt
-    payload = {
-        "model": "mistral",
-        "stream": False,
-        "messages": [
-            {
-                "role": "user",
-                "content": f"As an interview coach, briefly evaluate this {category} interview answer:\n\nQ: {question}\nA: {user_answer}\n\nGive 3 quick points: what's good, what's missing, how to improve."
-            }
-        ]
-    }
-
-    try:
-        response = requests.post(url, json=payload, timeout=30)
-        response.raise_for_status()
-        result = response.json()
-        return result['message']['content']
-    except Exception as e:
-        return f"Quick feedback unavailable: {str(e)}"
-
-# Function to check Ollama model status
-def check_ollama_status():
-    """Check if Ollama is running and which models are available"""
-    try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=5)
-        if response.status_code == 200:
-            models = response.json().get('models', [])
-            model_names = [model['name'] for model in models]
-            logger.info(f"Ollama is running. Available models: {model_names}")
-            return True, model_names
-        else:
-            logger.warning("Ollama responded but with error status")
-            return False, []
-    except Exception as e:
-        logger.error(f"Cannot reach Ollama: {e}")
-        return False, []
-
-def get_optimized_ollama_feedback(user_answer, question, emotion, category="behavioral"):
-    """Optimized Ollama feedback with shorter prompts and better error handling"""
+    # Get basic content analysis
+    analysis = analyze_answer_content(user_answer, question)
     
-    # Category-specific short frameworks
-    frameworks = {
-        'behavioral': 'Use STAR method: Situation, Task, Action, Result',
-        'situational': 'Show: Understanding, Options, Decision, Reasoning', 
-        'technical': 'Cover: Problem, Approach, Implementation, Trade-offs',
-        'motivational': 'Express: Passion, Values, Growth mindset, Alignment'
-    }
-    
-    framework = frameworks.get(category, frameworks['behavioral'])
-    
-    # Much shorter, focused prompt
-    prompt = f"""Question: {question}
-
-Answer: {user_answer}
-
-Emotion detected: {emotion}
-
-As an interview coach, provide concise feedback on this {category} interview answer. {framework}.
-
-Give 4 brief points:
-1. What's working well
-2. What's missing or weak  
-3. How to improve
-4. Emotion/delivery notes
-
-Keep response under 200 words."""
-
-    payload = {
-        "model": "mistral",
-        "stream": False,
-        "messages": [
-            {
-                "role": "system", 
-                "content": "You are a helpful interview coach. Be encouraging but specific. Keep feedback concise and actionable."
-            },
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    }
-    
-    try:
-        logger.info("Sending optimized request to Ollama...")
-        response = requests.post(
-            "http://localhost:11434/api/chat", 
-            json=payload, 
-            timeout=25  # Shorter timeout
-        )
-        
-        if response.status_code == 200:
-            result = response.json()
-            if 'message' in result and 'content' in result['message']:
-                feedback = result['message']['content'].strip()
-                logger.info("AI feedback received successfully")
-                return feedback
-            else:
-                logger.warning("Invalid response format from Ollama")
-                return None
-        else:
-            logger.warning(f"Ollama returned status code: {response.status_code}")
-            return None
-            
-    except requests.exceptions.Timeout:
-        logger.warning("Ollama request timed out")
-        return None
-    except requests.exceptions.ConnectionError:
-        logger.warning("Connection to Ollama failed")
-        return None
-    except Exception as e:
-        logger.error(f"Ollama request error: {e}")
-        return None
-
-# Complete the missing parts from the first views.py file
-
-def get_smart_feedback_with_fallback(user_answer, question, emotion, category="behavioral"):
-    """Enhanced feedback with better error handling and fallback"""
-    
-    # First, check if Ollama is available with a quick health check
-    try:
-        logger.info("Testing Ollama connection...")
-        response = requests.get("http://localhost:11434/api/tags", timeout=3)
-        
-        if response.status_code == 200:
-            models = response.json().get('models', [])
-            
-            # Check if mistral model is available
-            if any('mistral' in str(model) for model in models):
-                logger.info("Ollama and Mistral model available - attempting AI feedback")
-                
-                # Try to get AI feedback with shorter timeout
-                try:
-                    ai_feedback = get_optimized_ollama_feedback(user_answer, question, emotion, category)
-                    if ai_feedback and not ai_feedback.startswith("Failed") and not ai_feedback.startswith("Request timed out"):
-                        return "🤖 **AI Feedback:**\n\n" + ai_feedback
-                    else:
-                        logger.warning("AI feedback failed, using fallback")
-                except Exception as e:
-                    logger.warning(f"AI feedback error: {e}")
-            else:
-                logger.warning("Mistral model not found in Ollama")
-        else:
-            logger.warning(f"Ollama health check failed: {response.status_code}")
-            
-    except requests.exceptions.Timeout:
-        logger.warning("Ollama connection timeout - using fallback")
-    except requests.exceptions.ConnectionError:
-        logger.warning("Cannot connect to Ollama - using fallback")
-    except Exception as e:
-        logger.warning(f"Ollama check failed: {e}")
-    
-    # Fallback to rule-based system
-    logger.info("Using rule-based feedback system")
-    return "💡 **Smart Analysis:**\n\n" + get_fallback_feedback(user_answer, question, emotion, category)
-
-# FALLBACK FEEDBACK SYSTEM FUNCTIONS
-def get_fallback_feedback(user_answer, question, emotion, category="behavioral"):
-    """Provide rule-based feedback when Ollama is unavailable"""
-    
-    # Analyze answer characteristics
-    word_count = len(user_answer.split())
-    sentence_count = len([s for s in user_answer.split('.') if s.strip()])
-    
-    # Check for framework elements based on category
     feedback_parts = []
     
-    # General structure analysis
+    # Basic length assessment
+    word_count = len(user_answer.split())
     if word_count < 50:
-        feedback_parts.append("📏 **Length**: Your answer is quite brief. Consider adding more specific details and examples to strengthen your response.")
+        feedback_parts.append("📏 Your answer is quite brief. Consider adding more specific details and examples.")
     elif word_count > 200:
-        feedback_parts.append("📏 **Length**: Good detail level! Make sure to stay focused on the key points to keep the interviewer engaged.")
+        feedback_parts.append("📏 Good detail level! Stay focused on key points.")
     else:
-        feedback_parts.append("📏 **Length**: Good answer length - detailed but concise.")
+        feedback_parts.append("📏 Good answer length - detailed but concise.")
     
-    # Category-specific analysis
-    if category == 'behavioral':
-        star_elements = analyze_star_framework(user_answer)
-        feedback_parts.append(f"⭐ **STAR Framework**: {star_elements}")
-        
-    elif category == 'situational':
-        problem_solving = analyze_problem_solving(user_answer)
-        feedback_parts.append(f"🧠 **Problem-Solving**: {problem_solving}")
-        
-    elif category == 'technical':
-        technical_elements = analyze_technical_approach(user_answer)
-        feedback_parts.append(f"🔧 **Technical Approach**: {technical_elements}")
-        
-    elif category == 'motivational':
-        motivation_elements = analyze_motivation(user_answer)
-        feedback_parts.append(f"💪 **Motivation**: {motivation_elements}")
+    # Content strengths
+    strengths = []
+    if analysis['context_provided']:
+        strengths.append("good context")
+    if analysis['quantifiable_results']:
+        strengths.append("specific metrics")
+    if analysis['action_words']:
+        strengths.append("clear actions")
+    if analysis['learning_mentioned']:
+        strengths.append("learning mindset")
     
-    # Emotion-based feedback
-    emotion_feedback = get_emotion_feedback(emotion)
-    feedback_parts.append(f"😊 **Emotional Delivery**: {emotion_feedback}")
+    if strengths:
+        feedback_parts.append(f"✅ Strengths: {', '.join(strengths)}.")
     
-    # Specific improvements
-    improvements = generate_improvements(user_answer, category, word_count)
-    feedback_parts.append(f"🎯 **Key Improvements**: {improvements}")
+    # Areas for improvement
+    improvements = []
+    if not analysis['context_provided']:
+        improvements.append("add more situation context")
+    if not analysis['quantifiable_results']:
+        improvements.append("include measurable outcomes")
+    if len(analysis['action_words']) < 2:
+        improvements.append("use more specific action words")
     
-    # Example enhancement
-    example = generate_example_improvement(user_answer, category)
-    if example:
-        feedback_parts.append(f"💡 **Example Enhancement**: {example}")
+    if improvements:
+        feedback_parts.append(f"🎯 Improvements: {', '.join(improvements)}.")
+    
+    # Emotion feedback
+    emotion_feedback = get_detailed_emotion_feedback(emotion, user_answer)
+    feedback_parts.append(f"🎭 Delivery: {emotion_feedback}")
     
     return "\n\n".join(feedback_parts)
 
-def generate_improvements(answer, category, word_count):
-    """Generate specific improvement suggestions"""
-    improvements = []
-    
-    if 'I' not in answer:
-        improvements.append("Use more 'I' statements to show personal ownership and responsibility")
-    
-    if not any(char.isdigit() for char in answer):
-        improvements.append("Add specific metrics, numbers, or timeframes to quantify your impact")
-    
-    if word_count < 30:
-        improvements.append("Expand with more specific details and concrete examples")
-    
-    if category == 'behavioral' and 'learned' not in answer.lower():
-        improvements.append("Mention what you learned or how you'd handle similar situations differently")
-    
-    if not improvements:
-        improvements.append("Practice delivering your answer with more confidence and energy")
-    
-    return "; ".join(improvements[:3])  # Limit to top 3
-
-# ADD this endpoint for testing Ollama status (optional):
-@csrf_exempt
-def check_ollama_status_endpoint(request):
-    """Endpoint to check Ollama status from frontend"""
-    try:
-        response = requests.get("http://localhost:11434/api/tags", timeout=3)
-        if response.status_code == 200:
-            models = response.json().get('models', [])
-            has_mistral = any('mistral' in str(model) for model in models)
-            
-            return JsonResponse({
-                'status': 'running',
-                'models': [m.get('name', str(m)) for m in models],
-                'has_mistral': has_mistral
-            })
-        else:
-            return JsonResponse({'status': 'error', 'message': 'Ollama not responding properly'})
-            
-    except Exception as e:
-        return JsonResponse({'status': 'offline', 'error': str(e)})
-
-# ENHANCE your existing feedback_page function by replacing it with this:
+# MAIN VIEW FUNCTIONS
+# UPDATE THIS FUNCTION - Replace your existing feedback_page function
 def feedback_page(request):
-    global stop_event, emotion_thread
+    """Enhanced feedback page with emotion validation"""
+    global stop_event, emotion_thread, validated_emotion, emotion_confidence
     
     # Stop emotion detection
     stop_event.set()
@@ -802,30 +843,393 @@ def feedback_page(request):
     question = request.session.get('question', '')
     answer = request.GET.get('transcript') or request.session.get('answer', '')
     request.session['answer'] = answer
-    emotion = detected_emotion
+    
+    # Use validated emotion instead of raw emotion
+    final_emotion = validated_emotion
     category = request.session.get('category', 'behavioral')
-
-    # Use enhanced feedback system
-    logger.info(f"Generating feedback for {category} question")
-    logger.info(f"Answer length: {len(answer.split())} words")
-    logger.info(f"Detected emotion: {emotion}")
+    role_level = request.session.get('role_level', 'mid')
+    
+    logger.info(f"Generating feedback with validated emotion: {final_emotion} (confidence: {emotion_confidence:.3f})")
     
     start_time = time.time()
-    feedback = get_smart_feedback_with_fallback(answer, question, emotion, category)
-    end_time = time.time()
     
-    logger.info(f"Feedback generated in {end_time - start_time:.2f} seconds")
-
-    # Check if we used AI or fallback
-    feedback_type = "AI" if feedback.startswith("🤖") else "Rule-based"
+    # Get emotion validation details
+    validator = get_emotion_validator()
+    validation_details = None
+    if validator and answer:
+        validation = validator.validate_emotion(detected_emotion, answer)
+        validation_details = {
+            'original_emotion': validation.original_emotion,
+            'validated_emotion': validation.validated_emotion,
+            'confidence_score': validation.confidence_score,
+            'sentiment_score': validation.sentiment_score,
+            'correlation_strength': validation.correlation_strength,
+            'contextual_interpretation': validation.contextual_interpretation,
+            'flags': validation.flags,
+            'adjustment_reason': validation.adjustment_reason
+        }
+    
+    # Use the enhanced feedback system with validated emotion
+    feedback = get_vectorized_feedback_with_fallback(
+        answer, question, final_emotion, category, role_level
+    )
+    
+    end_time = time.time()
+    processing_time = end_time - start_time
+    
+    # Get additional metrics
+    vectorizer = get_vectorizer()
+    metrics = {}
+    if vectorizer:
+        try:
+            semantic_score = vectorizer.analyze_answer_semantics(answer, category, role_level)
+            metrics = {
+                'content_coverage': f"{semantic_score.content_coverage:.1%}",
+                'technical_depth': f"{semantic_score.technical_depth:.1%}",
+                'leadership_indicators': f"{semantic_score.leadership_indicators:.1%}",
+                'communication_clarity': f"{semantic_score.communication_clarity:.1%}",
+                'emotion_confidence': f"{emotion_confidence:.1%}"
+            }
+        except Exception as e:
+            logger.warning(f"Could not generate metrics: {e}")
     
     return render(request, 'feedback.html', {
         'question': question,
         'answer': answer,
-        'emotion': emotion,
+        'emotion': final_emotion,
+        'raw_emotion': detected_emotion,
+        'emotion_confidence': emotion_confidence,
         'feedback': feedback,
-        'feedback_type': feedback_type,
+        'feedback_type': "Enhanced with Emotion Validation" if validator else "Enhanced Analysis",
         'category': category,
+        'role_level': role_level,
         'camera_available': camera_available,
-        'processing_time': f"{end_time - start_time:.1f}s"
+        'processing_time': f"{processing_time:.1f}s",
+        'metrics': metrics,
+        'vectorizer_available': vectorizer is not None,
+        'validator_available': validator is not None,
+        'validation_details': validation_details
     })
+
+# UPDATE THIS FUNCTION - Enhance your existing get_detailed_emotion_feedback
+def get_detailed_emotion_feedback(emotion, answer, confidence=1.0, flags=None):
+    """Enhanced emotion feedback with validation context"""
+    word_count = len(answer.split())
+    flags = flags or []
+    
+    base_feedback = {
+        'neutral': "Professional demeanor maintained throughout your response.",
+        'happy': "Your positive energy came through well! This enthusiasm is great for interviews.",
+        'sad': "You seemed a bit subdued. Try to project more energy and confidence in your delivery.",
+        'angry': "You appeared tense. Take deep breaths and focus on staying calm and composed.",
+        'fear': "Some nervousness detected - this is normal! Practice will help build confidence.",
+        'surprise': "You seemed caught off-guard. Take a moment to collect your thoughts before answering.",
+        'disgust': "You appeared uncomfortable. Try to maintain a more positive, engaged expression."
+    }
+    
+    feedback = base_feedback.get(emotion, "Maintain professional composure")
+    
+    # Add confidence context
+    if confidence < 0.4:
+        feedback += f" (Note: Low confidence detection - {confidence:.1%})"
+    elif confidence >= 0.8:
+        feedback += f" (High confidence detection - {confidence:.1%})"
+    
+    # Add flag-specific feedback
+    if flags:
+        flag_feedback = []
+        for flag in flags[:2]:  # Show max 2 flags
+            if "Technical discussion" in flag:
+                flag_feedback.append("Your focused technical discussion shows expertise.")
+            elif "Problem-solving" in flag:
+                flag_feedback.append("Your methodical problem-solving approach is impressive.")
+            elif "High engagement" in flag:
+                flag_feedback.append("Your passion for the topic comes through clearly.")
+            elif "Concentration" in flag:
+                flag_feedback.append("Your thoughtful consideration of the question shows depth.")
+        
+        if flag_feedback:
+            feedback += " " + " ".join(flag_feedback)
+    
+    # Add specific delivery advice
+    if word_count < 30 and emotion in ['fear', 'sad'] and confidence > 0.6:
+        feedback += " Your brief response suggests you might need more preparation. Practice your stories out loud."
+    elif word_count > 150 and emotion == 'neutral' and confidence > 0.7:
+        feedback += " Good detail level with calm delivery - this shows confidence in your experience."
+    elif emotion == 'happy' and 'challenge' in answer.lower() and confidence > 0.6:
+        feedback += " Excellent - your positive attitude when discussing challenges shows resilience."
+    
+    return feedback
+# UTILITY FUNCTIONS
+@csrf_exempt
+def set_role_level(request):
+    """Endpoint to set target role level"""
+    if request.method == "POST":
+        role_level = request.POST.get('role_level', 'mid')
+        if role_level in ['junior', 'mid', 'senior', 'lead']:
+            request.session['role_level'] = role_level
+            return JsonResponse({'success': True, 'role_level': role_level})
+        else:
+            return JsonResponse({'error': 'Invalid role level'})
+    
+    return JsonResponse({'error': 'Invalid request method'})
+
+@csrf_exempt
+def vectorization_status(request):
+    """Check vectorization system status"""
+    vectorizer = get_vectorizer()
+    
+    dependencies = {
+        'sentence_transformers': False,
+        'sklearn': False,
+        'numpy': False
+    }
+    
+    try:
+        import sentence_transformers
+        dependencies['sentence_transformers'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import sklearn
+        dependencies['sklearn'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import numpy
+        dependencies['numpy'] = True
+    except ImportError:
+        pass
+    
+    return JsonResponse({
+        'vectorizer_available': vectorizer is not None,
+        'dependencies': dependencies,
+        'fallback_mode': vectorizer.fallback_mode if vectorizer else True,
+        'cache_dir': vectorizer.cache_dir if vectorizer else None,
+        'model_loaded': bool(vectorizer and vectorizer.model) if vectorizer else False
+    })
+
+# OLLAMA INTEGRATION (Optional - kept for backward compatibility)
+def get_ollama_feedback(user_answer, question, emotion, category="behavioral"):
+    """Optional Ollama integration - kept for users who want AI feedback"""
+    logger.info("Attempting Ollama feedback...")
+    
+    try:
+        # Check if Ollama is available
+        response = requests.get("http://localhost:11434/api/tags", timeout=3)
+        if response.status_code != 200:
+            return None
+        
+        # Simple prompt for faster processing
+        url = "http://localhost:11434/api/chat"
+        payload = {
+            "model": "mistral",
+            "stream": False,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": f"You are an interview coach. Evaluate {category} interview answers. Be encouraging but specific."
+                },
+                {
+                    "role": "user",
+                    "content": f"Question: {question}\nAnswer: {user_answer}\nEmotion: {emotion}\n\nProvide brief feedback on strengths, improvements, and delivery."
+                }
+            ]
+        }
+        
+        response = requests.post(url, json=payload, timeout=25)
+        if response.status_code == 200:
+            result = response.json()
+            if 'message' in result and 'content' in result['message']:
+                return result['message']['content']
+    
+    except Exception as e:
+        logger.warning(f"Ollama feedback failed: {e}")
+    
+    return None
+
+def get_enhanced_feedback_with_ai_fallback(user_answer, question, emotion, category="behavioral", role_level="mid"):
+    """
+    Enhanced feedback that tries vectorization first, then Ollama, then basic analysis
+    """
+    
+    # Try vectorized feedback first
+    vectorizer = get_vectorizer()
+    if vectorizer:
+        try:
+            logger.info("Using vectorized feedback system")
+            return get_vectorized_feedback_with_fallback(user_answer, question, emotion, category, role_level)
+        except Exception as e:
+            logger.warning(f"Vectorized feedback failed: {e}")
+    
+    # Try Ollama as fallback
+    ollama_feedback = get_ollama_feedback(user_answer, question, emotion, category)
+    if ollama_feedback:
+        logger.info("Using Ollama AI feedback")
+        emotion_feedback = get_detailed_emotion_feedback(emotion, user_answer)
+        return f"🤖 AI Analysis:\n\n{ollama_feedback}\n\n🎭 Delivery: {emotion_feedback}"
+    
+    # Final fallback to basic analysis
+    logger.info("Using basic feedback system")
+    return get_basic_feedback(user_answer, question, emotion, category)
+
+# OPTIONAL: Enhanced interview page with role level selection
+def interview_page_with_role_selection(request):
+    """Enhanced interview page that includes role level selection"""
+    global stop_event, emotion_thread, emotion_detection_enabled
+    
+    category = request.GET.get('category', 'behavioral')
+    role_level = request.GET.get('role_level', 'mid')
+    
+    # Store role level in session
+    request.session['role_level'] = role_level
+    
+    questions = interview_questions.get(category, interview_questions['behavioral'])
+    question = random.choice(questions)
+    request.session['question'] = question
+    request.session['category'] = category
+
+    # Check if user wants to disable emotion detection
+    disable_camera = request.GET.get('disable_camera', '').lower() == 'true'
+    emotion_detection_enabled = not disable_camera
+
+    # Stop any existing emotion detection
+    stop_event.set()
+    if emotion_thread and emotion_thread.is_alive():
+        emotion_thread.join(timeout=3)
+    
+    # Start new emotion detection only if enabled
+    if emotion_detection_enabled:
+        stop_event.clear()
+        emotion_thread = threading.Thread(target=detect_emotion_live)
+        emotion_thread.daemon = True
+        emotion_thread.start()
+        logger.info("Started emotion detection thread")
+    else:
+        logger.info("Emotion detection disabled by user")
+
+    return render(request, 'interview.html', {
+        'question': question,
+        'category': category,
+        'role_level': role_level,
+        'camera_available': camera_available,
+        'emotion_detection_enabled': emotion_detection_enabled,
+        'vectorizer_available': get_vectorizer() is not None
+    })
+
+# DIAGNOSTIC FUNCTIONS
+@csrf_exempt
+def diagnostic_info(request):
+    """Endpoint to get diagnostic information about the system"""
+    vectorizer = get_vectorizer()
+    
+    info = {
+        'system': {
+            'platform': platform.system(),
+            'camera_available': camera_available,
+            'emotion_detection_enabled': emotion_detection_enabled
+        },
+        'vectorizer': {
+            'available': vectorizer is not None,
+            'fallback_mode': vectorizer.fallback_mode if vectorizer else True,
+            'model_loaded': bool(vectorizer and vectorizer.model) if vectorizer else False,
+            'cache_dir': vectorizer.cache_dir if vectorizer else None
+        },
+        'dependencies': {
+            'opencv': True,  # We know this works since we imported cv2
+            'deepface': True,  # We know this works since we imported DeepFace
+            'speech_recognition': True,  # We know this works
+            'sentence_transformers': False,
+            'sklearn': False,
+            'numpy': False
+        }
+    }
+    
+    # Check optional dependencies
+    try:
+        import sentence_transformers
+        info['dependencies']['sentence_transformers'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import sklearn
+        info['dependencies']['sklearn'] = True
+    except ImportError:
+        pass
+    
+    try:
+        import numpy
+        info['dependencies']['numpy'] = True
+    except ImportError:
+        pass
+    
+    # Check Ollama availability
+    try:
+        response = requests.get("http://localhost:11434/api/tags", timeout=3)
+        info['ollama'] = {
+            'available': response.status_code == 200,
+            'models': response.json().get('models', []) if response.status_code == 200 else []
+        }
+    except Exception:
+        info['ollama'] = {'available': False, 'models': []}
+    
+    return JsonResponse(info)
+
+# INITIALIZATION HELPER
+def initialize_vectorizer_on_startup():
+    """Call this function when Django starts up to initialize the vectorizer"""
+    try:
+        vectorizer = get_vectorizer()
+        if vectorizer:
+            logger.info("Vectorizer initialized successfully on startup")
+            return True
+        else:
+            logger.warning("Vectorizer initialization failed on startup")
+            return False
+    except Exception as e:
+        logger.error(f"Error during vectorizer startup initialization: {e}")
+        return False
+
+# USAGE INSTRUCTIONS
+"""
+INTEGRATION INSTRUCTIONS:
+
+1. REMOVED FROM YOUR ORIGINAL VIEWS.PY:
+   - Redundant feedback functions (get_fallback_feedback, get_enhanced_personalized_feedback, etc.)
+   - Duplicate analysis functions that are now handled by the vectorizer
+   - Old OLLAMA functions that were causing timeouts
+   - Verbose feedback generation that's now streamlined
+
+2. NEW MAIN FUNCTIONS TO USE:
+   - feedback_page(): Main feedback function (replaces your old one)
+   - get_vectorized_feedback_with_fallback(): Main feedback generation
+   - enhanced_analyze_answer_content(): Enhanced content analysis
+
+3. URL PATTERNS TO ADD/UPDATE IN urls.py:
+   urlpatterns = [
+       path('', start_page, name='start'),
+       path('interview/', interview_page, name='interview'),
+       path('feedback/', feedback_page, name='feedback'),
+       path('transcribe/', transcribe_audio, name='transcribe'),
+       path('set-emotion/', set_emotion, name='set_emotion'),
+       path('set-role-level/', set_role_level, name='set_role_level'),
+       path('vectorization-status/', vectorization_status, name='vectorization_status'),
+       path('diagnostic/', diagnostic_info, name='diagnostic'),
+   ]
+
+4. TEMPLATE UPDATES NEEDED:
+   - Add role_level selection to your interview.html
+   - Update feedback.html to show metrics if available
+   - Add vectorizer status indicators
+
+5. DEPENDENCIES TO INSTALL (optional but recommended):
+   pip install sentence-transformers scikit-learn numpy
+
+6. TO INITIALIZE ON DJANGO STARTUP:
+   Add to your apps.py ready() method:
+   from .views import initialize_vectorizer_on_startup
+   initialize_vectorizer_on_startup()
+"""
