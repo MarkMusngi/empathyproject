@@ -34,7 +34,8 @@ from django.contrib.auth import login
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from .models import UserProfile, InterviewSession
-from .feedback_models import FeedbackModelManager, create_feedback_context
+from .feedback_models import FeedbackContext, create_feedback_context
+
 from django.db import transaction
 
 from django.db import models
@@ -786,37 +787,33 @@ def start_page(request):
 def interview_page(request):
     """UPDATED: Handle specific question parameter and reset smoother when starting new interview"""
     global stop_event, emotion_thread, emotion_detection_enabled
-    
+
     category = request.GET.get('category', 'behavioral')
-    
+    feedback_model = request.GET.get('feedback_model', 'adaptive')  # ✅ Get model from query
+    request.session['feedback_model'] = feedback_model              # ✅ Store in session
+
     # Check if a specific question was passed (for retry functionality)
     specific_question = request.GET.get('question')
-    
+
     if specific_question:
-        # Use the specific question passed in the URL
         question = specific_question
     else:
-        # Select a random question from the category
         questions = interview_questions.get(category, interview_questions['behavioral'])
         question = random.choice(questions)
-    
-    # Store in session
+
     request.session['question'] = question
     request.session['category'] = category
 
-    # Reset emotion smoother for new session
+    # Reset emotion smoother
     reset_emotion_smoother()
 
-    # Check if user wants to disable emotion detection
     disable_camera = request.GET.get('disable_camera', '').lower() == 'true'
     emotion_detection_enabled = not disable_camera
 
-    # Stop any existing emotion detection
     stop_event.set()
     if emotion_thread and emotion_thread.is_alive():
         emotion_thread.join(timeout=3)
-    
-    # Start new emotion detection only if enabled
+
     if emotion_detection_enabled:
         stop_event.clear()
         emotion_thread = threading.Thread(target=detect_emotion_live)
@@ -831,8 +828,10 @@ def interview_page(request):
         'category': category,
         'camera_available': camera_available,
         'emotion_detection_enabled': emotion_detection_enabled,
-        'is_retry': bool(specific_question)  # Flag to indicate if this is a retry
+        'is_retry': bool(specific_question),
+        'feedback_model': feedback_model,  # ✅ Optional: pass to frontend if needed
     })
+
 @csrf_exempt
 def set_emotion(request):
     """Allow manual emotion setting if camera is not available"""
@@ -2670,61 +2669,85 @@ def clear_user_analytics(request):
 def feedback_page_enhanced_with_recording(request):
     """Enhanced feedback page that actually uses the feedback models"""
     global stop_event, emotion_thread, validated_emotion, emotion_confidence
-    
+
     # Stop emotion detection
     stop_event.set()
     if emotion_thread and emotion_thread.is_alive():
         emotion_thread.join(timeout=5)
-    
+
+    # Pull session/question/answer
     question = request.session.get('question', '')
     answer = request.GET.get('transcript') or request.session.get('answer', '')
     request.session['answer'] = answer
-    
+
     category = request.session.get('category', 'behavioral')
     role_level = request.session.get('role_level', 'mid')
-    
-    logger.info(f"Generating feedback with validated emotion: {validated_emotion} (confidence: {emotion_confidence:.3f})")
-    
+
+    # ✅ Pull selected feedback model
+    feedback_model_name = request.session.get('feedback_model', 'adaptive')
+
+    logger.info(f"Generating feedback with model: {feedback_model_name} | emotion: {validated_emotion} (confidence: {emotion_confidence:.3f})")
+
     start_time = time.time()
-    
-    # ✅ NOW ACTUALLY USE THE FEEDBACK MODELS
-    feedback = get_personalized_feedback_using_models(
-        answer, question, validated_emotion, category, role_level, request
-    )
-    
-    end_time = time.time()
-    processing_time = end_time - start_time
-    
-    # Calculate scores for recording
+
+    # Score setup
     vectorizer = get_vectorizer()
     overall_score = 0.6
     content_score = 0.6
-    
+    enhanced_analysis = {}
+
     if vectorizer:
         try:
             enhanced_analysis = enhanced_analyze_answer_content(
                 answer, question, category, role_level
             )
             overall_score = enhanced_analysis.get('overall_score', 0.6)
-            semantic_analysis = enhanced_analysis.get('semantic_analysis')
-            if semantic_analysis:
-                content_score = semantic_analysis.get('content_coverage', 0.6)
+            semantic = enhanced_analysis.get('semantic_analysis')
+            if semantic:
+                content_score = semantic.get('content_coverage', 0.6)
         except Exception as e:
             logger.warning(f"Could not calculate scores: {e}")
-    
+
     emotion_score = emotion_confidence
-    
-    # Record session data
+
+    # Load user profile
     try:
         user_id = request.session.get('user_id')
         if not user_id:
             user_id = get_or_create_user_session(request)
             request.session['user_id'] = user_id
-        
+
         user = User.objects.get(id=user_id)
         profile = user.userprofile
-        
-        # Create session record
+
+    except Exception as e:
+        logger.error(f"User profile loading failed: {e}")
+        profile = None
+
+    # ✅ Generate feedback using selected model
+    context = FeedbackContext(
+        user_profile=profile,
+        session_data={'question': question, 'answer': answer},
+        performance_scores={
+            'overall_score': overall_score,
+            'content_score': content_score,
+            'emotion_score': emotion_score
+        },
+        emotion_data={
+            'validated_emotion': validated_emotion,
+            'confidence': emotion_confidence
+        },
+        content_analysis=enhanced_analysis
+    )
+
+    feedback_model = get_feedback_manager().get_model(feedback_model_name)
+    feedback = feedback_model.generate_feedback(context)
+
+    end_time = time.time()
+    processing_time = end_time - start_time
+
+    # ✅ Record session
+    try:
         session = InterviewSession.objects.create(
             user_profile=profile,
             category=category,
@@ -2736,28 +2759,27 @@ def feedback_page_enhanced_with_recording(request):
             detected_emotion=detected_emotion,
             validated_emotion=validated_emotion,
             emotion_confidence=emotion_confidence,
-            feedback_model_used=profile.preferred_feedback_model,
+            feedback_model_used=feedback_model_name,
             feedback_content=feedback,
             vectorizer_used=vectorizer is not None
         )
-        
-        # Update profile
-        profile.session_count += 1
-        profile.save()
-        
+
+        if profile:
+            profile.session_count += 1
+            profile.save()
+
         logger.info(f"Session recorded: {session.id}")
-        
+
     except Exception as e:
         logger.error(f"Failed to record session: {e}")
-    
-    # Generate metrics for display
+
     metrics = {
         'overall_score': f"{overall_score:.1%}",
         'content_coverage': f"{content_score:.1%}",
         'emotion_confidence': f"{emotion_confidence:.1%}",
         'processing_time': f"{processing_time:.1f}s"
     }
-    
+
     return render(request, 'feedback.html', {
         'question': question,
         'answer': answer,
@@ -2765,6 +2787,7 @@ def feedback_page_enhanced_with_recording(request):
         'raw_emotion': detected_emotion,
         'emotion_confidence': emotion_confidence,
         'feedback': feedback,
+        'feedback_model_name': feedback_model_name,  # ✅ to show in frontend
         'feedback_type': "Personalized Model-Based",
         'category': category,
         'role_level': role_level,
@@ -2774,8 +2797,8 @@ def feedback_page_enhanced_with_recording(request):
         'vectorizer_available': vectorizer is not None,
         'show_rating': True,
         'user_id': request.session.get('user_id'),
-        'user_profile': profile if 'profile' in locals() else None,
-        'feedback_manager_active': True,  # Since we're now using it
+        'user_profile': profile,
+        'feedback_manager_active': True,
         'validator_available': True,
     })
 

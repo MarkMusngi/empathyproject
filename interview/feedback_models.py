@@ -612,9 +612,8 @@ class FeedbackModelManager:
             'adaptive': AdaptiveModel()
         }
    
-    def get_model(self, model_name: str) -> BaseFeedbackModel:
-        """Get a specific feedback model"""
-        return self.models.get(model_name, self.models['coaching'])
+    def get_model(self, name: str) -> BaseFeedbackModel:
+        return self.models.get(name, self.models["adaptive"])
    
     def generate_feedback(self, model_name: str, context: FeedbackContext) -> str:
         """Generate feedback using specified model"""

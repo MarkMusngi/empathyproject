@@ -16,10 +16,6 @@
         .error { background: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; text-align: center; }
         .analytics-section { background: white; margin-bottom: 20px; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
         .analytics-section h2 { margin-top: 0; color: #007cba; border-bottom: 2px solid #007cba; padding-bottom: 10px; }
-        .profile-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-        .stat-card { text-align: center; padding: 25px; background: #f8f9fa; border-radius: 8px; }
-        .stat-card h3 { margin: 0; font-size: 2.5em; color: #007cba; font-weight: bold; }
-        .stat-card p { margin: 15px 0 0 0; color: #666; font-size: 1.1em; }
         .chart-container { margin: 20px 0; text-align: center; background: #f8f9fa; padding: 20px; border-radius: 8px; }
         .trend-info { margin-top: 20px; padding: 15px; background: #e8f4fd; border-radius: 6px; }
         .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
@@ -27,11 +23,6 @@
         .category-card h4 { margin: 0 0 15px 0; color: #333; }
         .score-bar { height: 12px; background: #e9ecef; border-radius: 6px; overflow: hidden; margin: 15px 0; }
         .score-fill { height: 100%; background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #0abde3); border-radius: 6px; }
-        .model-effectiveness { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
-        .model-card { padding: 20px; background: #f8f9fa; border-radius: 8px; }
-        .model-card h4 { margin: 0 0 15px 0; color: #333; }
-        .effectiveness-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; margin: 15px 0; }
-        .effectiveness-fill { height: 100%; background: #28a745; border-radius: 4px; }
         .sessions-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
         .session-card { padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007cba; }
         .session-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
@@ -72,25 +63,6 @@
         </div>
 
         <div id="analytics-content">
-            <!-- Profile Overview -->
-            <div class="analytics-section">
-                <h2>Profile Overview</h2>
-                <div class="profile-stats">
-                    <div class="stat-card">
-                        <h3 id="total-sessions">0</h3>
-                        <p>Total Sessions</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="average-rating">0.0</h3>
-                        <p>Average Score</p>
-                    </div>
-                    <div class="stat-card">
-                        <h3 id="profile-completion">0%</h3>
-                        <p>Profile Complete</p>
-                    </div>
-                </div>
-            </div>
-
             <!-- Performance Trend -->
             <div class="analytics-section">
                 <h2>Recent Performance Trend</h2>
@@ -107,14 +79,6 @@
                 <h2>Performance by Category</h2>
                 <div id="category-performance" class="category-grid">
                     <!-- Category performance cards will be populated here -->
-                </div>
-            </div>
-
-            <!-- Emotion Detection Accuracy -->
-            <div class="analytics-section">
-                <h2>Emotion Detection Accuracy</h2>
-                <div id="emotion-accuracy" class="model-effectiveness">
-                    <!-- Emotion accuracy data will be populated here -->
                 </div>
             </div>
 
@@ -201,11 +165,6 @@
         function populateAnalytics(analytics) {
             console.log('Populating analytics with data:', analytics);
             
-            // Profile stats
-            document.getElementById('total-sessions').textContent = analytics.total_sessions || 0;
-            document.getElementById('average-rating').textContent = (analytics.summary_stats?.average_overall_score || 0).toFixed(1);
-            document.getElementById('profile-completion').textContent = Math.round(analytics.profile_completion || 0) + '%';
-
             // Recent performance trend
             if (analytics.improvement_trend && analytics.improvement_trend.length > 0) {
                 drawPerformanceChart(analytics.improvement_trend);
@@ -220,13 +179,6 @@
                 showCategoryPerformance(analytics.category_performance);
             } else {
                 document.getElementById('category-performance').innerHTML = '<p class="no-data">No category data available yet.</p>';
-            }
-
-            // Emotion accuracy
-            if (analytics.emotion_accuracy && Object.keys(analytics.emotion_accuracy).length > 0) {
-                showEmotionAccuracy(analytics.emotion_accuracy);
-            } else {
-                document.getElementById('emotion-accuracy').innerHTML = '<p class="no-data">Complete more sessions to see emotion detection accuracy.</p>';
             }
 
             // Recent sessions
@@ -377,30 +329,6 @@
                         <div class="score-fill" style="width: ${cat.percentage}%"></div>
                     </div>
                     <p>${cat.percentage}% average performance</p>
-                </div>
-            `).join('');
-            
-            container.innerHTML = html;
-        }
-
-        function showEmotionAccuracy(accuracyData) {
-            const container = document.getElementById('emotion-accuracy');
-            
-            const emotions = Object.entries(accuracyData).map(([emotion, accuracy]) => ({
-                emotion: emotion.charAt(0).toUpperCase() + emotion.slice(1),
-                accuracy: accuracy,
-                percentage: Math.round(accuracy * 100)
-            }));
-            
-            emotions.sort((a, b) => b.accuracy - a.accuracy);
-            
-            const html = emotions.map(emo => `
-                <div class="model-card">
-                    <h4>${emo.emotion} Detection</h4>
-                    <p>Accuracy: ${emo.percentage}%</p>
-                    <div class="effectiveness-bar">
-                        <div class="effectiveness-fill" style="width: ${emo.percentage}%"></div>
-                    </div>
                 </div>
             `).join('');
             

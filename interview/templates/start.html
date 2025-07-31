@@ -472,45 +472,47 @@
         }
 
         // Main navigation function - this is the key function that was missing!
-        function startInterview(category) {
-            showLoading(true);
-            
-            // Increment session count
-            ProfileManager.incrementSessionCount();
-            
-            // Build URL parameters
-            const params = new URLSearchParams();
-            params.append('category', category);
-            
-            // Add feedback model selection
-            params.append('feedback_model', selectedFeedbackModel);
-            
-            // Add camera disable option if checked
-            if (document.getElementById('disable_camera').checked) {
-                params.append('disable_camera', 'true');
-            }
-            
-            // Add role level - either from profile or manual selection
-            let roleLevel = 'mid'; // default
-            if (currentProfile && currentProfile.experience_level) {
-                roleLevel = currentProfile.experience_level;
-            } else {
-                const roleLevelSelect = document.getElementById('role_level');
-                if (roleLevelSelect) {
-                    roleLevel = roleLevelSelect.value;
-                }
-            }
-            params.append('role_level', roleLevel);
-            
-            // Navigate to interview page
-            const url = `/interview/?${params.toString()}`;
-            console.log('Navigating to:', url);
-            
-            // Add a small delay to show loading, then navigate
-            setTimeout(() => {
-                window.location.href = url;
-            }, 500);
+    function startInterview(category) {
+        showLoading(true);
+
+        // Increment session count
+        ProfileManager.incrementSessionCount();
+
+        // Build URL parameters
+        const params = new URLSearchParams();
+        params.append('category', category);
+
+        // ✅ Add feedback model from localStorage
+        const selectedModel = localStorage.getItem("selectedFeedbackModel") || "adaptive";
+        params.append('feedback_model', selectedModel);
+
+        // Add camera disable option if checked
+        if (document.getElementById('disable_camera').checked) {
+            params.append('disable_camera', 'true');
         }
+
+        // Add role level - either from profile or manual selection
+        let roleLevel = 'mid'; // default
+        if (currentProfile && currentProfile.experience_level) {
+            roleLevel = currentProfile.experience_level;
+        } else {
+            const roleLevelSelect = document.getElementById('role_level');
+            if (roleLevelSelect) {
+                roleLevel = roleLevelSelect.value;
+            }
+        }
+        params.append('role_level', roleLevel);
+
+        // Navigate to interview page
+        const url = `/interview/?${params.toString()}`;
+        console.log('Navigating to:', url);
+
+        // Add a small delay to show loading, then navigate
+        setTimeout(() => {
+            window.location.href = url;
+        }, 500);
+    }
+
 
         function createProfile() {
             document.getElementById('profile-create-modal').style.display = 'flex';
@@ -746,6 +748,24 @@
             console.log('Selected Feedback Model:', selectedFeedbackModel);
             console.log('Local Storage:', localStorage.getItem('userProfile'));
             console.log('User ID:', localStorage.getItem('user_id'));
+        }
+        function selectFeedbackModel(modelName) {
+            localStorage.setItem("selectedFeedbackModel", modelName);
+
+            document.querySelectorAll(".model-option").forEach(el =>
+                el.classList.remove("selected")
+            );
+            const selected = document.querySelector(`.model-option[data-model="${modelName}"]`);
+            if (selected) selected.classList.add("selected");
+
+            const preview = {
+                coaching: "Supportive feedback with a focus on growth and encouragement.",
+                peer_review: "Balanced feedback like a helpful peer.",
+                expert_analysis: "Detailed technical breakdown with specific improvement areas.",
+                strategic: "Big-picture and leadership-oriented insights.",
+                adaptive: "Automatically chooses the best style for you."
+            };
+            document.getElementById("model-preview").textContent = preview[modelName] || "Feedback style description.";
         }
 
         // Make debug function available globally
