@@ -25,7 +25,7 @@
         .options-content { padding: 15px 0; }
         .options-content label { display: block; margin: 10px 0; }
         .options-content input[type="checkbox"] { margin-right: 8px; }
-        .options-content select { margin-left: 10px; padding: 5px; }
+        .options-content select { margin-left: 10px; padding: 5px; width: 200px; }
         .profile-summary { background: #e8f4fd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007cba; }
         .profile-summary h3 { margin-top: 0; color: #007cba; }
         .profile-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
@@ -49,6 +49,17 @@
         @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
         .checkbox-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
         .checkbox-group label { margin: 5px 0; }
+        
+        /* New Feedback Model Selection Styles */
+        .feedback-model-section { margin: 25px 0; background: #fff8dc; padding: 20px; border-radius: 6px; border-left: 4px solid #ffa500; }
+        .feedback-model-section h4 { margin-top: 0; color: #ff8c00; }
+        .model-selector { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin: 15px 0; }
+        .model-option { border: 2px solid #ddd; padding: 15px; border-radius: 6px; cursor: pointer; text-align: center; transition: all 0.3s; background: white; }
+        .model-option:hover { border-color: #007cba; background: #f0f8ff; }
+        .model-option.selected { border-color: #007cba; background: #e8f4fd; }
+        .model-option .model-name { font-weight: bold; color: #007cba; margin-bottom: 8px; }
+        .model-option .model-desc { font-size: 0.85em; color: #666; line-height: 1.3; }
+        .model-preview { margin-top: 15px; padding: 15px; background: #f9f9f9; border-radius: 4px; font-style: italic; color: #666; min-height: 40px; }
     </style>
 </head>
 <body>
@@ -80,6 +91,43 @@
                     </div>
                 </div>
                 <hr>
+            </div>
+        </div>
+
+        <!-- Feedback Model Selection -->
+        <div class="feedback-model-section">
+            <h4>🎭 Choose Your Feedback Style</h4>
+            <p style="margin: 0; font-size: 0.9em; color: #666;">Select how you'd like to receive feedback on your interview performance:</p>
+            
+            <div class="model-selector">
+                <div class="model-option" data-model="coaching" onclick="selectFeedbackModel('coaching')">
+                    <div class="model-name">🌟 Coaching</div>
+                    <div class="model-desc">Supportive and encouraging feedback focused on growth</div>
+                </div>
+                
+                <div class="model-option" data-model="peer_review" onclick="selectFeedbackModel('peer_review')">
+                    <div class="model-name">🤝 Peer Review</div>
+                    <div class="model-desc">Collaborative and balanced feedback from a peer perspective</div>
+                </div>
+                
+                <div class="model-option" data-model="expert_analysis" onclick="selectFeedbackModel('expert_analysis')">
+                    <div class="model-name">📊 Expert Analysis</div>
+                    <div class="model-desc">Technical and detailed analysis with specific metrics</div>
+                </div>
+                
+                <div class="model-option" data-model="strategic" onclick="selectFeedbackModel('strategic')">
+                    <div class="model-name">🎯 Strategic</div>
+                    <div class="model-desc">Big picture and leadership-focused feedback</div>
+                </div>
+                
+                <div class="model-option selected" data-model="adaptive" onclick="selectFeedbackModel('adaptive')">
+                    <div class="model-name">🧠 Adaptive</div>
+                    <div class="model-desc">Automatically adjusts style based on your performance</div>
+                </div>
+            </div>
+            
+            <div id="model-preview" class="model-preview">
+                Adaptive feedback automatically selects the best approach based on your profile and performance history.
             </div>
         </div>
 
@@ -201,6 +249,17 @@
                 </div>
                 
                 <div class="form-group">
+                    <label for="preferred_feedback_model">Feedback Style:</label>
+                    <select id="preferred_feedback_model" name="preferred_feedback_model">
+                        <option value="adaptive" selected>Adaptive (Automatically adjusts)</option>
+                        <option value="coaching">Coaching (Supportive and encouraging)</option>
+                        <option value="peer_review">Peer Review (Collaborative and balanced)</option>
+                        <option value="expert_analysis">Expert Analysis (Technical and detailed)</option>
+                        <option value="strategic">Strategic (Big picture focused)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
                     <label for="learning_preference">Learning Preference:</label>
                     <select id="learning_preference" name="learning_preference">
                         <option value="detailed" selected>Detailed feedback</option>
@@ -295,13 +354,52 @@
 
         // Global variables
         let currentProfile = null;
+        let selectedFeedbackModel = 'adaptive';
+
+        // Feedback model previews
+        const modelPreviews = {
+            coaching: "Great work on this response! You're building solid interview skills. Here's how you can grow even stronger: try adding more specific examples. Your positive energy really came through!",
+            peer_review: "Hey! I just reviewed your response. You nailed: solid content structure. Could strengthen: more quantifiable outcomes. What's helped me: practicing the STAR method really helps structure responses.",
+            expert_analysis: "Performance Metrics: Overall Score 75%, Content Quality 70%. Technical Analysis: ✓ Strong action orientation, ⚠ Limited quantifiable results. Strategic Recommendation: Include technical architecture details.",
+            strategic: "Executive Summary: Demonstrated strong alignment with leadership expectations. Leadership Presence: 80% - shows action-oriented decision making and results-driven mindset. Focus on organizational-level impact.",
+            adaptive: "Adaptive feedback automatically selects the best approach based on your profile and performance history."
+        };
 
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             checkForExistingProfile();
             handleURLParams();
             setupEventListeners();
+            initializeFeedbackModelSelector();
         });
+
+        function initializeFeedbackModelSelector() {
+            // Load saved feedback model preference
+            const profile = ProfileManager.load();
+            if (profile && profile.preferred_feedback_model) {
+                selectFeedbackModel(profile.preferred_feedback_model);
+            }
+        }
+
+        function selectFeedbackModel(modelName) {
+            selectedFeedbackModel = modelName;
+            
+            // Update visual selection
+            document.querySelectorAll('.model-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+            document.querySelector(`[data-model="${modelName}"]`).classList.add('selected');
+            
+            // Update preview
+            document.getElementById('model-preview').textContent = modelPreviews[modelName];
+            
+            // Save to profile if exists
+            const profile = ProfileManager.load();
+            if (profile) {
+                profile.preferred_feedback_model = modelName;
+                ProfileManager.save(profile);
+            }
+        }
 
         function setupEventListeners() {
             // Profile creation form
@@ -360,12 +458,17 @@
                 <p><strong>Experience Level:</strong> ${capitalizeFirst(profile.experience_level || 'Not specified')}</p>
                 <p><strong>Industry:</strong> ${capitalizeFirst(profile.industry || 'Not specified')}</p>
                 <p><strong>Role Type:</strong> ${capitalizeFirst(profile.role_type || 'Not specified')}</p>
-                <p><strong>Learning Style:</strong> ${capitalizeFirst(profile.learning_preference || 'Not specified')}</p>
+                <p><strong>Feedback Style:</strong> ${capitalizeFirst(profile.preferred_feedback_model || 'Adaptive')}</p>
                 <p><strong>Sessions Completed:</strong> ${profile.session_count || 0}</p>
             `;
 
             // Hide the manual role level dropdown since profile has this info
             document.getElementById('role-level-section').style.display = 'none';
+            
+            // Set the selected feedback model
+            if (profile.preferred_feedback_model) {
+                selectFeedbackModel(profile.preferred_feedback_model);
+            }
         }
 
         // Main navigation function - this is the key function that was missing!
@@ -378,6 +481,9 @@
             // Build URL parameters
             const params = new URLSearchParams();
             params.append('category', category);
+            
+            // Add feedback model selection
+            params.append('feedback_model', selectedFeedbackModel);
             
             // Add camera disable option if checked
             if (document.getElementById('disable_camera').checked) {
@@ -431,6 +537,7 @@
             form.role_type.value = profile.role_type || 'technical';
             form.current_job_title.value = profile.current_job_title || '';
             form.target_role.value = profile.target_role || '';
+            form.preferred_feedback_model.value = profile.preferred_feedback_model || 'adaptive';
             form.learning_preference.value = profile.learning_preference || 'detailed';
             form.focus_areas.value = (profile.focus_areas || []).join(', ');
             form.interview_goals.value = profile.interview_goals || '';
@@ -450,6 +557,7 @@
                 role_type: formData.get('role_type'),
                 current_job_title: formData.get('current_job_title'),
                 target_role: formData.get('target_role'),
+                preferred_feedback_model: formData.get('preferred_feedback_model'),
                 learning_preference: formData.get('learning_preference'),
                 focus_areas: formData.get('focus_areas').split(',').map(s => s.trim()).filter(s => s),
                 interview_goals: formData.get('interview_goals'),
@@ -635,6 +743,7 @@
         // Debug function
         function debugInfo() {
             console.log('Current Profile:', currentProfile);
+            console.log('Selected Feedback Model:', selectedFeedbackModel);
             console.log('Local Storage:', localStorage.getItem('userProfile'));
             console.log('User ID:', localStorage.getItem('user_id'));
         }
