@@ -2,150 +2,1386 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Interview Feedback</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interview Feedback - Enhanced Analysis</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: auto; }
-        h1, h2, h3 { color: #333; }
-        .feedback-box { border: 1px solid #ccc; border-radius: 6px; padding: 16px; background: #f9f9f9; }
-        .metric { margin-bottom: 10px; }
-        .status { margin-top: 10px; font-size: 0.9em; color: #666; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0; 
+            padding: 20px; 
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+        }
+        
+        .header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            margin-bottom: 30px; 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            border-left: 5px solid #007cba;
+        }
+        
+        .header h1 { 
+            margin: 0; 
+            color: #333; 
+            font-size: 2.2em;
+            font-weight: 600;
+        }
+        
+        .header-actions { 
+            display: flex; 
+            gap: 12px; 
+        }
+        
+        .action-btn { 
+            padding: 12px 24px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 14px; 
+            font-weight: 500;
+            text-decoration: none; 
+            display: inline-block; 
+            text-align: center; 
+            transition: all 0.3s ease;
+        }
+        
+        .action-btn.primary { 
+            background: linear-gradient(135deg, #007cba 0%, #005a8b 100%); 
+            color: white; 
+        }
+        
+        .action-btn.primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,124,186,0.3); 
+        }
+        
+        .action-btn.secondary { 
+            background: #6c757d; 
+            color: white; 
+        }
+        
+        .action-btn.secondary:hover { 
+            background: #545b62; 
+            transform: translateY(-1px);
+        }
+        
+        .feedback-section { 
+            background: white; 
+            margin-bottom: 25px; 
+            padding: 30px; 
+            border-radius: 12px; 
+            box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+            border-top: 4px solid #007cba;
+        }
+        
+        .feedback-section h2 { 
+            margin-top: 0; 
+            color: #007cba; 
+            font-size: 1.6em;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .section-icon {
+            font-size: 1.2em;
+        }
+        
+        .data-grid { 
+            display: grid; 
+            gap: 20px; 
+            margin-bottom: 20px;
+        }
+        
+        .data-item { 
+            margin-bottom: 20px; 
+        }
+        
+        .data-item strong { 
+            color: #333; 
+            display: block; 
+            margin-bottom: 8px; 
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+        
+        .category-badge { 
+            background: linear-gradient(135deg, #007cba 0%, #005a8b 100%); 
+            color: white; 
+            padding: 6px 16px; 
+            border-radius: 25px; 
+            font-size: 0.9em; 
+            font-weight: 500;
+            display: inline-block;
+        }
+        
+        .transcript-box {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 15px 0;
+            line-height: 1.6;
+            font-size: 1.05em;
+            position: relative;
+        }
+        
+        .transcript-box::before {
+            content: "📝";
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 1.2em;
+        }
+        
+        .word-count {
+            color: #666;
+            font-size: 0.9em;
+            margin-top: 10px;
+            font-style: italic;
+        }
+        
+        .metrics-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; 
+            margin: 20px 0;
+        }
+        
+        .metric-card { 
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: 1px solid #dee2e6;
+            border-radius: 10px;
+            padding: 25px; 
+            text-align: center;
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .metric-card h3 { 
+            margin: 0; 
+            font-size: 2.5em; 
+            color: #007cba; 
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .metric-card p { 
+            margin: 0; 
+            color: #555; 
+            font-weight: 500;
+            font-size: 0.95em;
+        }
+        
+        .emotion-analysis { 
+            display: grid; 
+            grid-template-columns: 1fr auto; 
+            gap: 25px; 
+            align-items: start; 
+        }
+        
+        .emotion-display { 
+            flex: 1; 
+        }
+        
+        .emotion-main { 
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+            margin-bottom: 20px; 
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .emotion-icon { 
+            font-size: 4em; 
+        }
+        
+        .emotion-details h3 { 
+            margin: 0; 
+            color: #333; 
+            font-size: 1.8em;
+            font-weight: 600;
+        }
+        
+        .confidence { 
+            color: #666; 
+            font-size: 1em; 
+            margin: 8px 0; 
+            font-weight: 500;
+        }
+        
+        .validation-status {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: 500;
+            margin-top: 8px;
+        }
+        
+        .validation-high { background: #d4edda; color: #155724; }
+        .validation-medium { background: #fff3cd; color: #856404; }
+        .validation-low { background: #f8d7da; color: #721c24; }
+        
+        .emotion-context {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .emotion-context h4 {
+            margin-top: 0;
+            color: #007cba;
+        }
+
+        .emotion-context p {
+            line-height: 1.6;
+            color: #555;
+        }
+        
+        .emotion-correction { 
+            background: linear-gradient(135deg, #fff3cd 0%, #ffeaa7 100%); 
+            border: 1px solid #ffeaa7; 
+            padding: 20px; 
+            border-radius: 10px; 
+            max-width: 300px;
+        }
+        
+        .emotion-correction h4 { 
+            margin-top: 0; 
+            color: #856404; 
+            font-size: 1.1em;
+        }
+        
+        .correction-form { 
+            display: flex; 
+            flex-direction: column;
+            gap: 12px; 
+        }
+        
+        .correction-form select { 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            border-radius: 6px; 
+            font-size: 0.95em;
+        }
+        
+        .correction-btn { 
+            padding: 10px 18px; 
+            background: #007cba; 
+            color: white; 
+            border: none; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            font-weight: 500;
+            transition: background 0.3s ease;
+        }
+        
+        .correction-btn:hover { 
+            background: #005a8b; 
+        }
+        
+        .feedback-content { 
+            line-height: 1.8; 
+            color: #333; 
+            font-size: 1.05em;
+            background: #f8f9fa;
+            padding: 25px;
+            border-radius: 10px;
+            border-left: 4px solid #007cba;
+            white-space: pre-line;
+        }
+        
+        .feedback-meta { 
+            display: flex; 
+            gap: 12px; 
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .feedback-badge { 
+            background: #e9ecef; 
+            padding: 6px 12px; 
+            border-radius: 20px; 
+            font-size: 0.85em; 
+            font-weight: 500;
+        }
+        
+        .system-status { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 15px; 
+        }
+        
+        .status-item { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 15px; 
+            background: #f8f9fa; 
+            border-radius: 8px; 
+            border: 1px solid #e9ecef;
+        }
+        
+        .status-good { color: #28a745; font-weight: 600; }
+        .status-warning { color: #ffc107; font-weight: 600; }
+        .status-error { color: #dc3545; font-weight: 600; }
+        .status-info { color: #17a2b8; font-weight: 600; }
+        
+        .action-section { 
+            text-align: center; 
+            margin: 40px 0; 
+        }
+        
+        .action-btn.large { 
+            padding: 18px 36px; 
+            font-size: 16px; 
+            margin: 0 10px;
+        }
+        
+        .loading { 
+            color: #007cba; 
+            font-style: italic; 
+        }
+        
+        .success { 
+            color: #28a745; 
+            font-weight: 600; 
+        }
+        
+        .error { 
+            color: #dc3545; 
+            font-weight: 600; 
+        }
+        
+        .performance-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+        
+        .perf-excellent { background: #28a745; }
+        .perf-good { background: #17a2b8; }
+        .perf-average { background: #ffc107; }
+        .perf-poor { background: #dc3545; }
+        
+        .validation-details {
+            margin-top: 15px;
+            font-size: 0.9em;
+            color: #666;
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+        }
+
+        .validation-details ul {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+
+        .validation-details li {
+            margin-bottom: 5px;
+        }
+        
+        .rating-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+        
+        .rating-stars {
+            display: flex;
+            gap: 5px;
+            margin: 10px 0;
+        }
+        
+        .star {
+            font-size: 1.5em;
+            cursor: pointer;
+            color: #ddd;
+            transition: color 0.2s;
+        }
+        
+        .star.active,
+        .star:hover {
+            color: #ffc107;
+        }
+
+        .no-metrics {
+            text-align: center;
+            color: #666;
+            font-style: italic;
+            padding: 40px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border: 1px solid #e9ecef;
+        }
+
+        .debug-section {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 0.9em;
+        }
+
+        .debug-section h4 {
+            margin-top: 0;
+            color: #856404;
+        }
+        
+        @media (max-width: 768px) {
+            .container { padding: 0 15px; }
+            .header { flex-direction: column; gap: 15px; text-align: center; }
+            .emotion-analysis { grid-template-columns: 1fr; }
+            .metrics-grid { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+            .action-btn.large { margin: 5px; display: block; }
+        }
     </style>
 </head>
 <body>
-    <h1>Interview Feedback</h1>
-    <div>
-        <h3>Question:</h3>
-        <p>{{ question }}</p>
-
-        <h3>Your Answer:</h3>
-        <p>{{ answer }}</p>
-
-        <h3>Detected Emotion:</h3>
-        <p>{{ emotion }}</p>
-
-        <h3>Role Level:</h3>
-        <p>{{ role_level|capfirst }}</p>
-
-        <h3>Category:</h3>
-        <p>{{ category|capfirst }}</p>
-    </div>
-
-    <div class="feedback-box">
-        <h3>Feedback Summary</h3>
-        <pre>{{ feedback }}</pre>
-    </div>
-
-    {% if metrics %}
-        <div>
-            <h3>Performance Metrics:</h3>
-                {% for key, value in metrics.items %}
-                    <div class="metric"><strong>{{ key|capfirst }}</strong>: {{ value }}</div>
-                {% endfor %}
+    <div class="container">
+        <div class="header">
+            <h1>🎯 Interview Analysis Report</h1>
+            <div class="header-actions">
+                <button onclick="startNewInterview()" class="action-btn primary">New Interview</button>
+                <button onclick="exportReport()" class="action-btn secondary">Export Report</button>
+            </div>
         </div>
-    {% endif %}
 
-    <div class="status">
-        Vectorizer: 
-        {% if vectorizer_available %}
-            ✅ Active
-        {% else %}
-            ⚠️ Not Available (Fallback Mode)
-        {% endif %}
-        <br>
-        Feedback Type: {{ feedback_type }}<br>
-        Processing Time: {{ processing_time }}
-    </div>
-    <div class="emotion-validation">
-        <h3>Emotion Analysis:</h3>
-        {% if validation_details %}
-            <div class="validation-details">
-                <p><strong>Detected:</strong> {{ validation_details.original_emotion }}</p>
-                <p><strong>Validated:</strong> {{ validation_details.validated_emotion }} 
-                ({{ validation_details.confidence_score|floatformat:1 }}% confidence)</p>
-                
-                {% if validation_details.flags %}
-                    <div class="validation-flags">
-                        <p><strong>Analysis Notes:</strong></p>
-                        <ul>
-                            {% for flag in validation_details.flags %}
-                                <li>{{ flag }}</li>
-                            {% endfor %}
-                        </ul>
+        <!-- Interview Data Section -->
+        <div class="feedback-section">
+            <h2><span class="section-icon">📋</span>Interview Session Data</h2>
+            <div class="data-grid">
+                <div class="data-item">
+                    <strong>Question Asked:</strong>
+                    <p id="question-text">{{ question }}</p>
+                </div>
+                <div class="data-item">
+                    <strong>Category:</strong>
+                    <span id="category-badge" class="category-badge">{{ category|title }}</span>
+                </div>
+                <div class="data-item">
+                    <strong>Session Timestamp:</strong>
+                    <p id="session-timestamp">Loading...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transcription Section -->
+        <div class="feedback-section">
+            <h2><span class="section-icon">🎙️</span>Your Response Transcription</h2>
+            <div class="transcript-box" id="transcript-content">
+                <p id="transcript-text">{{ answer }}</p>
+                <div class="word-count" id="word-count">Loading word count...</div>
+            </div>
+        </div>
+
+        <!-- Performance Metrics Section -->
+        <div class="feedback-section">
+            <h2><span class="section-icon">📊</span>Performance Metrics</h2>
+            <div id="metrics-container">
+                <div class="metrics-grid" id="metrics-grid">
+                    <!-- Metrics will be populated by JavaScript -->
+                </div>
+                <div class="no-metrics" id="no-metrics" style="display: none;">
+                    <p>🔄 Loading performance metrics...</p>
+                    <small>Metrics will appear here once analysis is complete</small>
+                </div>
+            </div>
+            
+            <!-- Debug information -->
+            <div class="debug-section" id="debug-info" style="display: none;">
+                <h4>Debug Information:</h4>
+                <div id="debug-content"></div>
+            </div>
+        </div>
+
+        <!-- Emotion Analysis Section -->
+        <div class="feedback-section">
+            <h2><span class="section-icon">🎭</span>Delivery & Emotion Analysis</h2>
+            <div class="emotion-analysis">
+                <div class="emotion-display">
+                    <div class="emotion-main">
+                        <span class="emotion-icon" id="emotion-icon">😐</span>
+                        <div class="emotion-details">
+                            <h3 id="emotion-name">{{ emotion|title }}</h3>
+                            <p class="confidence" id="emotion-confidence">{{ emotion_confidence|floatformat:1 }}% detection confidence</p>
+                            <span class="validation-status" id="validation-status">Processing...</span>
+                        </div>
                     </div>
-                {% endif %}
-                
-                <p><strong>Context:</strong> {{ validation_details.contextual_interpretation }}</p>
-                
-                {% if validation_details.adjustment_reason != "No adjustment needed" %}
-                    <p><strong>Adjustment:</strong> {{ validation_details.adjustment_reason }}</p>
-                {% endif %}
+                    
+                    <div class="emotion-context" id="emotion-context">
+                        <h4>Emotion Context Analysis:</h4>
+                        <p id="emotion-analysis-text">Analyzing emotion-content correlation...</p>
+                        
+                        {% if validation_details %}
+                        <div class="validation-details">
+                            <strong>Validation Details:</strong>
+                            <ul>
+                                <li><strong>Original Detection:</strong> {{ validation_details.original_emotion|title }}</li>
+                                <li><strong>Validated Result:</strong> {{ validation_details.validated_emotion|title }}</li>
+                                <li><strong>Confidence Score:</strong> {{ validation_details.confidence_score|floatformat:1 }}%</li>
+                                <li><strong>Sentiment Score:</strong> {{ validation_details.sentiment_score|floatformat:2 }}</li>
+                                {% if validation_details.correlation_strength %}
+                                <li><strong>Correlation:</strong> {{ validation_details.correlation_strength|floatformat:2 }}</li>
+                                {% endif %}
+                                {% if validation_details.adjustment_reason %}
+                                <li><strong>Adjustment Reason:</strong> {{ validation_details.adjustment_reason }}</li>
+                                {% endif %}
+                                {% if validation_details.contextual_interpretation %}
+                                <li><strong>Context:</strong> {{ validation_details.contextual_interpretation }}</li>
+                                {% endif %}
+                            </ul>
+                            {% if validation_details.flags %}
+                            <div style="margin-top: 10px;">
+                                <strong>Analysis Flags:</strong>
+                                <div style="font-size: 0.85em; color: #666; margin-top: 5px;">
+                                    {% for flag in validation_details.flags %}
+                                        <span style="background: #e9ecef; padding: 2px 8px; border-radius: 12px; margin-right: 5px;">{{ flag }}</span>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="emotion-correction" id="emotion-correction">
+                    <h4>Accuracy Check</h4>
+                    <p>Was this emotion detection accurate?</p>
+                    <form id="emotion-correction-form" class="correction-form">
+                        <select name="corrected_emotion" id="corrected_emotion">
+                            <option value="">Select if different...</option>
+                            <option value="neutral">😐 Neutral/Professional</option>
+                            <option value="happy">😊 Confident/Positive</option>
+                            <option value="fear">😰 Nervous/Anxious</option>
+                            <option value="surprise">🤔 Focused/Thinking</option>
+                            <option value="happy">😃 Enthusiastic</option>
+                            <option value="sad">😔 Subdued/Low Energy</option>
+                            <option value="angry">😠 Frustrated/Tense</option>
+                        </select>
+                        <button type="submit" class="correction-btn">Submit Correction</button>
+                    </form>
+                    <div id="correction-status"></div>
+                </div>
             </div>
-        {% else %}
-            <p>{{ emotion }} (Basic detection)</p>
-        {% endif %}
-        
-        <!-- Emotion correction form -->
-        {% if validator_available %}
-            <div class="emotion-correction">
-                <p>Was this emotion detection accurate?</p>
-                <form id="emotion-correction-form">
-                    <select name="corrected_emotion">
-                        <option value="">Select correct emotion...</option>
-                        <option value="neutral">Neutral</option>
-                        <option value="happy">Happy</option>
-                        <option value="sad">Sad</option>
-                        <option value="angry">Focused/Intense</option>
-                        <option value="fear">Nervous</option>
-                        <option value="surprise">Surprised</option>
-                    </select>
-                    <button type="submit">Submit Correction</button>
-                </form>
+        </div>
+
+        <!-- Personalized Feedback Section -->
+        <div class="feedback-section">
+            <h2><span class="section-icon">💬</span>Personalized Feedback Analysis</h2>
+            <div class="feedback-meta">
+                <span class="feedback-badge" id="feedback-model">{{ feedback_type }}</span>
+                {% if role_level %}
+                <span class="feedback-badge" id="experience-level">{{ role_level|title }}-Level Professional</span>
+                {% endif %}
+                {% if vectorizer_available %}
+                <span class="feedback-badge" id="analysis-type">🔍 Enhanced Vectorization</span>
+                {% endif %}
+                <!-- ADD THIS NEW BADGE: -->
+                <span class="feedback-badge" id="model-type">🤖 AI Model: {{ user_profile.preferred_feedback_model|default:"Adaptive" }}</span>
             </div>
-        {% endif %}
+            
+            <div class="feedback-content" id="feedback-content">{{ feedback }}</div>
+            
+            {% if show_rating %}
+            <div class="rating-section">
+                <h4>Rate this feedback:</h4>
+                <div class="rating-stars" id="rating-stars">
+                    <span class="star" data-rating="1">⭐</span>
+                    <span class="star" data-rating="2">⭐</span>
+                    <span class="star" data-rating="3">⭐</span>
+                    <span class="star" data-rating="4">⭐</span>
+                    <span class="star" data-rating="5">⭐</span>
+                </div>
+                <textarea id="rating-notes" placeholder="Additional feedback (optional)" rows="3" style="width: 100%; margin-top: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                <button onclick="submitRating()" class="action-btn primary" style="margin-top: 10px;">Submit Rating</button>
+                <div id="rating-status"></div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- System Performance Section -->
+        <div class="feedback-section">
+            <h2><span class="section-icon">🔧</span>Analysis System Status</h2>
+            <div class="system-status">
+                <div class="status-item">
+                    <strong>Vectorization Engine:</strong>
+                    <span class="status-{% if vectorizer_available %}good{% else %}warning{% endif %}" id="vectorizer-status">
+                        {% if vectorizer_available %}✅ Active{% else %}⚠️ Basic Mode{% endif %}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <strong>Emotion Validation:</strong>
+                    <span class="status-{% if validator_available %}good{% else %}info{% endif %}" id="validator-status">
+                        {% if validator_available %}✅ Enhanced{% else %}ℹ️ Standard{% endif %}
+                    </span>
+                </div>
+                <div class="status-item">
+                    <strong>Processing Time:</strong>
+                    <span class="status-info" id="processing-time">⚡ {{ processing_time }}</span>
+                </div>
+                <div class="status-item">
+                    <strong>Camera Available:</strong>
+                    <span class="status-{% if camera_available %}good{% else %}warning{% endif %}">
+                        {% if camera_available %}✅ Active{% else %}⚠️ Unavailable{% endif %}
+                    </span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-section">
+            <button onclick="startNewInterview()" class="action-btn primary large">
+                🔄 New Interview Session
+            </button>
+            <button onclick="practiceAgain()" class="action-btn secondary large">
+                🎯 Practice Same Category
+            </button>
+        </div>
     </div>
 
-    <!-- Add this JavaScript before closing </body> tag -->
     <script>
-    // Emotion correction handling
-    document.getElementById('emotion-correction-form')?.addEventListener('submit', function(e) {
-        e.preventDefault();
-        
-        const correctedEmotion = this.corrected_emotion.value;
-        if (!correctedEmotion) return;
-        
-        fetch('/correct-emotion/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-CSRFToken': getCookie('csrftoken')
-            },
-            body: `original_emotion={{ emotion }}&corrected_emotion=${correctedEmotion}`
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                alert('Thank you for the feedback! This helps improve emotion detection.');
-                this.style.display = 'none';
-            }
-        })
-        .catch(error => console.error('Correction failed:', error));
-    });
+    const sessionData = {
+        question: "{{ question|default:''|escapejs }}",
+        category: "{{ category|default:'behavioral'|escapejs }}",
+        transcript: "{{ answer|default:''|escapejs }}",
+        emotion: "{{ emotion|default:'neutral'|escapejs }}",
+        raw_emotion: "{{ raw_emotion|default:''|escapejs }}",
+        emotion_confidence: parseFloat("{{ emotion_confidence|default:'0' }}") || 0,
+        metrics: {{ metrics|default:"{}"|safe }},
+        user_id: "{{ user_id|default:''|escapejs }}",
+        validation_details: {{ validation_details|default:"null"|safe }},
+        vectorizer_available: {{ vectorizer_available|yesno:"true,false" }},
+        validator_available: {{ validator_available|yesno:"true,false" }}
+    };
 
-    function getCookie(name) {
-        let cookieValue = null;
-        if (document.cookie && document.cookie !== '') {
-            const cookies = document.cookie.split(';');
-            for (let i = 0; i < cookies.length; i++) {
-                const cookie = cookies[i].trim();
-                if (cookie.substring(0, name.length + 1) === (name + '=')) {
-                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+
+        console.log('Session Data:', sessionData);
+
+        // Initialize page when DOM loads
+        document.addEventListener('DOMContentLoaded', function() {
+            initializePage();
+            setupEventListeners();
+        });
+
+        function initializePage() {
+            // Set timestamp
+            document.getElementById('session-timestamp').textContent = new Date().toLocaleString();
+            
+            // Calculate and display word count
+            const transcript = sessionData.transcript || '';
+            const wordCount = transcript.split(/\s+/).filter(word => word.length > 0).length;
+            const estimatedDuration = Math.max(0.5, wordCount / 150 * 60); // ~150 words per minute
+            
+            document.getElementById('word-count').textContent = 
+                `Word count: ${wordCount} words | Estimated duration: ~${estimatedDuration.toFixed(1)} minutes`;
+            
+            // Set emotion icon and details
+            updateEmotionDisplay();
+            
+            // Update metrics display
+            updateMetricsDisplay();
+            
+            // Update validation status
+            updateValidationStatus();
+
+            // Load additional emotion context
+            loadEmotionContext();
+        }
+
+        function updateEmotionDisplay() {
+            const emotionIcons = {
+                'neutral': '😐',
+                'happy': '😊',
+                'sad': '😔',
+                'angry': '😠',
+                'fear': '😰',
+                'surprise': '🤔',
+                'disgust': '🤢'
+            };
+            
+            const emotionNames = {
+                'neutral': 'Neutral & Professional',
+                'happy': 'Positive & Confident',
+                'sad': 'Subdued',
+                'angry': 'Tense',
+                'fear': 'Nervous',
+                'surprise': 'Surprised',
+                'disgust': 'Uncomfortable'
+            };
+            
+            const emotion = sessionData.emotion || 'neutral';
+            const icon = emotionIcons[emotion] || '😐';
+            const name = emotionNames[emotion] || emotion.charAt(0).toUpperCase() + emotion.slice(1);
+            
+            document.getElementById('emotion-icon').textContent = icon;
+            document.getElementById('emotion-name').textContent = name;
+        }
+
+        function loadEmotionContext() {
+            const emotion = sessionData.emotion || 'neutral';
+            const transcript = sessionData.transcript || '';
+            
+            // Generate detailed emotion analysis
+            const analysisText = generateDetailedEmotionAnalysis(emotion, transcript);
+            document.getElementById('emotion-analysis-text').textContent = analysisText;
+        }
+
+        function generateDetailedEmotionAnalysis(emotion, transcript) {
+            const wordCount = transcript.split(/\s+/).filter(w => w.length > 0).length;
+            const hasExamples = transcript.toLowerCase().includes('example') || 
+                              transcript.toLowerCase().includes('experience') ||
+                              transcript.toLowerCase().includes('when i') ||
+                              transcript.toLowerCase().includes('there was a time');
+            const hasNumbers = /\d+/.test(transcript);
+            const hasActionWords = /\b(led|managed|created|developed|implemented|organized|solved|achieved|delivered|improved)\b/i.test(transcript);
+            
+            let analysis = '';
+            
+            // Emotion-specific analysis
+            switch(emotion) {
+                case 'happy':
+                case 'confident':
+                    analysis += 'Your positive and confident delivery enhances your message effectively. ';
+                    if (hasExamples) {
+                        analysis += 'The combination of enthusiasm with concrete examples creates a compelling narrative. ';
+                    }
                     break;
+                    
+                case 'neutral':
+                    analysis += 'Your calm and professional demeanor demonstrates good emotional regulation under pressure. ';
+                    if (wordCount > 100) {
+                        analysis += 'This composed delivery allows your detailed content to be the focus. ';
+                    }
+                    break;
+                    
+                case 'fear':
+                case 'nervous':
+                    analysis += 'Some nervousness is natural in interviews and shows you care about the outcome. ';
+                    if (wordCount > 80) {
+                        analysis += 'Despite the nerves, you provided substantial content, which is impressive. ';
+                    }
+                    analysis += 'Practice will help build confidence and reduce anxiety. ';
+                    break;
+                    
+                case 'surprise':
+                    analysis += 'Your thoughtful consideration of the question shows engagement with the topic. ';
+                    analysis += 'Taking time to process complex questions demonstrates careful thinking. ';
+                    break;
+                    
+                default:
+                    analysis += `Your ${emotion} expression during the response provides insight into your engagement level. `;
+                    break;
+            }
+            
+            // Content quality analysis
+            if (wordCount < 50) {
+                analysis += 'Your response was brief - consider expanding with more specific details and examples. ';
+            } else if (wordCount > 150) {
+                analysis += 'You provided comprehensive detail, showing thorough preparation. ';
+            } else {
+                analysis += 'Good response length - detailed but concise. ';
+            }
+            
+            // Structural analysis
+            if (hasExamples) {
+                analysis += 'Strong use of concrete examples strengthens your credibility. ';
+            } else {
+                analysis += 'Consider adding specific examples to illustrate your points. ';
+            }
+            
+            if (hasNumbers) {
+                analysis += 'Quantifiable details add impact to your response. ';
+            }
+            
+            if (hasActionWords) {
+                analysis += 'Good use of action-oriented language demonstrates your active role. ';
+            }
+            
+            // Emotion-content correlation
+            if ((emotion === 'happy' || emotion === 'confident') && hasActionWords) {
+                analysis += 'Your positive emotion combined with achievement-focused language is particularly effective. ';
+            } else if (emotion === 'neutral' && wordCount > 100) {
+                analysis += 'Your professional composure with detailed content demonstrates strong interview skills. ';
+            } else if ((emotion === 'fear' || emotion === 'nervous') && hasExamples) {
+                analysis += 'Despite nervousness, your use of examples shows good preparation. ';
+            }
+            
+            return analysis.trim();
+        }
+
+        function updateMetricsDisplay() {
+            const metricsGrid = document.getElementById('metrics-grid');
+            const noMetricsDiv = document.getElementById('no-metrics');
+            const debugInfo = document.getElementById('debug-info');
+            const debugContent = document.getElementById('debug-content');
+            
+            console.log('Updating metrics display with:', sessionData.metrics);
+            
+            if (!sessionData.metrics || Object.keys(sessionData.metrics).length === 0) {
+                console.log('No metrics available, showing fallback');
+                noMetricsDiv.style.display = 'block';
+                metricsGrid.style.display = 'none';
+                
+                // Show debug info
+                debugInfo.style.display = 'block';
+                debugContent.innerHTML = `
+                    <p><strong>Vectorizer Available:</strong> ${sessionData.vectorizer_available}</p>
+                    <p><strong>Validator Available:</strong> ${sessionData.validator_available}</p>
+                    <p><strong>Metrics Object:</strong> ${JSON.stringify(sessionData.metrics)}</p>
+                    <p><strong>Metrics Type:</strong> ${typeof sessionData.metrics}</p>
+                `;
+                
+                // Try to load metrics dynamically
+                loadDynamicMetrics();
+                return;
+            }
+            
+            // Hide no-metrics message and show grid
+            noMetricsDiv.style.display = 'none';
+            metricsGrid.style.display = 'grid';
+            debugInfo.style.display = 'none';
+            
+            const metricLabels = {
+                'content_coverage': 'Content Coverage',
+                'technical_depth': 'Technical Depth',
+                'leadership_indicators': 'Leadership Indicators',
+                'communication_clarity': 'Communication Clarity',
+                'emotion_confidence': 'Emotion Confidence',
+                'overall_score': 'Overall Score',
+                'depth_score': 'Response Depth',
+                'relevance_score': 'Relevance Score',
+                'problem_solving_indicators': 'Problem Solving',
+                'word_count': 'Response Length',
+                'estimated_quality': 'Estimated Quality',
+                'emotion_stability': 'Emotion Stability'
+            };
+            
+            metricsGrid.innerHTML = '';
+            
+            Object.entries(sessionData.metrics).forEach(([key, value]) => {
+                const label = metricLabels[key] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                
+                // Handle different value formats
+                let displayValue = value;
+                let numValue = 0;
+                
+                if (typeof value === 'string') {
+                    if (value.includes('%')) {
+                        displayValue = value;
+                        numValue = parseFloat(value.replace('%', '')) / 100;
+                    } else if (value.includes('words')) {
+                        displayValue = value;
+                        numValue = 0.6; // Default for word count
+                    } else {
+                        displayValue = value;
+                        numValue = 0.5; // Default
+                    }
+                } else if (typeof value === 'number') {
+                    if (value <= 1) {
+                        displayValue = `${Math.round(value * 100)}%`;
+                        numValue = value;
+                    } else {
+                        displayValue = value.toString();
+                        numValue = Math.min(value / 100, 1);
+                    }
                 }
+                
+                const perfClass = getPerformanceClass(numValue);
+                
+                const metricCard = document.createElement('div');
+                metricCard.className = 'metric-card';
+                metricCard.innerHTML = `
+                    <h3>${displayValue}</h3>
+                    <p>${label} <span class="performance-indicator ${perfClass}"></span></p>
+                `;
+                metricsGrid.appendChild(metricCard);
+            });
+        }
+
+        function loadDynamicMetrics() {
+            console.log('Attempting to load dynamic metrics...');
+            
+            // Try to get additional metrics from the server
+            fetch('/debug_metrics/?answer=' + encodeURIComponent(sessionData.transcript) + 
+                  '&question=' + encodeURIComponent(sessionData.question) + 
+                  '&category=' + encodeURIComponent(sessionData.category))
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Dynamic metrics response:', data);
+                    
+                    if (data.success && data.metrics) {
+                        sessionData.metrics = data.metrics;
+                        updateMetricsDisplay();
+                    } else if (data.fallback_metrics) {
+                        sessionData.metrics = data.fallback_metrics;
+                        updateMetricsDisplay();
+                    } else {
+                        // Generate basic metrics from available data
+                        generateBasicMetrics();
+                    }
+                })
+                .catch(error => {
+                    console.error('Failed to load dynamic metrics:', error);
+                    generateBasicMetrics();
+                });
+        }
+
+        function generateBasicMetrics() {
+            console.log('Generating basic metrics...');
+            
+            const transcript = sessionData.transcript || '';
+            const wordCount = transcript.split(/\s+/).filter(w => w.length > 0).length;
+            const confidence = sessionData.emotion_confidence || 0;
+            
+            // Generate basic metrics
+            const basicMetrics = {
+                'word_count': `${wordCount} words`,
+                'emotion_confidence': `${Math.round(confidence)}%`,
+                'estimated_quality': `${Math.min(80, Math.max(30, (wordCount / 2) + 20))}%`,
+                'response_completeness': wordCount > 50 ? '75%' : '45%'
+            };
+            
+            sessionData.metrics = basicMetrics;
+            updateMetricsDisplay();
+        }
+
+        function updateValidationStatus() {
+            const statusElement = document.getElementById('validation-status');
+            const confidence = sessionData.emotion_confidence || 0;
+            
+            if (confidence >= 80) {
+                statusElement.className = 'validation-status validation-high';
+                statusElement.textContent = '✅ High Confidence';
+            } else if (confidence >= 60) {
+                statusElement.className = 'validation-status validation-medium';
+                statusElement.textContent = '⚠️ Medium Confidence';
+            } else {
+                statusElement.className = 'validation-status validation-low';
+                statusElement.textContent = '❌ Low Confidence';
             }
         }
-        return cookieValue;
-    }
-    </script>
 
+        function getPerformanceClass(value) {
+            if (value >= 0.8) return 'perf-excellent';
+            if (value >= 0.7) return 'perf-good';
+            if (value >= 0.5) return 'perf-average';
+            return 'perf-poor';
+        }
+
+        function setupEventListeners() {
+            // Emotion correction form
+            const correctionForm = document.getElementById('emotion-correction-form');
+            if (correctionForm) {
+                correctionForm.addEventListener('submit', handleEmotionCorrection);
+            }
+            
+            // Rating stars
+            const stars = document.querySelectorAll('.star');
+            stars.forEach(star => {
+                star.addEventListener('click', handleStarClick);
+                star.addEventListener('mouseover', handleStarHover);
+            });
+
+            // Load additional metrics periodically
+            setTimeout(() => {
+                loadAdditionalMetrics();
+            }, 2000);
+        }
+
+        function loadAdditionalMetrics() {
+            // Load emotion metrics for more detailed analysis
+            fetch('/get_emotion_metrics/')
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Additional emotion metrics:', data);
+                    
+                    if (data.stability_score !== undefined) {
+                        addStabilityMetric(data.stability_score);
+                    }
+                    if (data.recent_emotion_history && data.recent_emotion_history.length > 0) {
+                        updateEmotionHistory(data.recent_emotion_history);
+                    }
+                    if (data.performance && data.performance.status) {
+                        updatePerformanceStatus(data.performance);
+                    }
+                })
+                .catch(error => console.log('Additional metrics load failed:', error));
+        }
+
+        function addStabilityMetric(stabilityScore) {
+            const metricsGrid = document.getElementById('metrics-grid');
+            if (metricsGrid && stabilityScore !== undefined) {
+                const stabilityCard = document.createElement('div');
+                stabilityCard.className = 'metric-card';
+                const stabilityPercent = Math.round(stabilityScore * 100);
+                const perfClass = getPerformanceClass(stabilityScore);
+                
+                stabilityCard.innerHTML = `
+                    <h3>${stabilityPercent}%</h3>
+                    <p>Emotion Stability <span class="performance-indicator ${perfClass}"></span></p>
+                `;
+                metricsGrid.appendChild(stabilityCard);
+                
+                // Update session data
+                if (!sessionData.metrics) sessionData.metrics = {};
+                sessionData.metrics['emotion_stability'] = `${stabilityPercent}%`;
+            }
+        }
+
+        function updateEmotionHistory(history) {
+            const contextDiv = document.getElementById('emotion-context');
+            
+            // Create or update emotion timeline
+            let timelineDiv = document.getElementById('emotion-timeline');
+            if (!timelineDiv) {
+                timelineDiv = document.createElement('div');
+                timelineDiv.id = 'emotion-timeline';
+                timelineDiv.innerHTML = `
+                    <h4 style="margin-top: 20px; color: #007cba;">Recent Emotion Timeline:</h4>
+                `;
+                contextDiv.appendChild(timelineDiv);
+            }
+            
+            const timelineContent = document.createElement('div');
+            timelineContent.style.cssText = 'font-size: 0.9em; color: #666; background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 10px;';
+            
+            const recentHistory = history.slice(0, 5);
+            timelineContent.innerHTML = recentHistory.map(item => {
+                const confidence = Math.round(item.confidence * 100);
+                const ageText = item.age_seconds < 60 ? 
+                    `${Math.round(item.age_seconds)}s ago` : 
+                    `${Math.round(item.age_seconds / 60)}m ago`;
+                return `<span style="margin-right: 15px;">${item.emotion} (${confidence}%) - ${ageText}</span>`;
+            }).join('<br>');
+            
+            // Replace existing timeline content
+            const existingContent = timelineDiv.querySelector('div');
+            if (existingContent) {
+                existingContent.replaceWith(timelineContent);
+            } else {
+                timelineDiv.appendChild(timelineContent);
+            }
+        }
+
+        function updatePerformanceStatus(performance) {
+            const contextDiv = document.getElementById('emotion-context');
+            
+            let perfDiv = document.getElementById('performance-status');
+            if (!perfDiv) {
+                perfDiv = document.createElement('div');
+                perfDiv.id = 'performance-status';
+                perfDiv.innerHTML = `
+                    <h4 style="margin-top: 20px; color: #007cba;">Detection Performance:</h4>
+                `;
+                contextDiv.appendChild(perfDiv);
+            }
+            
+            const statusText = performance.status === 'optimal' ? '🟢 Optimal' :
+                             performance.status === 'acceptable' ? '🟡 Good' : '🔴 Slow';
+            
+            const perfContent = document.createElement('div');
+            perfContent.style.cssText = 'font-size: 0.9em; color: #666; background: #f8f9fa; padding: 10px; border-radius: 6px; margin-top: 10px;';
+            perfContent.innerHTML = `
+                <p><strong>Processing Status:</strong> ${statusText}</p>
+                <p><strong>Average Processing:</strong> ${performance.avg_processing_time_ms?.toFixed(1) || 0}ms</p>
+                <p><strong>Total Frames:</strong> ${performance.total_frames_processed || 0}</p>
+            `;
+            
+            const existingContent = perfDiv.querySelector('div');
+            if (existingContent) {
+                existingContent.replaceWith(perfContent);
+            } else {
+                perfDiv.appendChild(perfContent);
+            }
+        }
+
+        function handleEmotionCorrection(e) {
+            e.preventDefault();
+            
+            const correctedEmotion = document.getElementById('corrected_emotion').value;
+            if (!correctedEmotion) return;
+            
+            const statusDiv = document.getElementById('correction-status');
+            statusDiv.innerHTML = '<span class="loading">Processing correction...</span>';
+            
+            // Send correction to backend
+            fetch('/correct_emotion/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `original_emotion=${sessionData.emotion}&corrected_emotion=${correctedEmotion}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusDiv.innerHTML = '<span class="success">✅ Thank you! Correction recorded for model improvement.</span>';
+                    e.target.style.display = 'none';
+                } else {
+                    statusDiv.innerHTML = '<span class="error">❌ Error recording correction.</span>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = '<span class="error">❌ Network error occurred.</span>';
+            });
+        }
+
+        function handleStarClick(e) {
+            const rating = parseInt(e.target.dataset.rating);
+            updateStarDisplay(rating);
+            sessionData.currentRating = rating;
+        }
+
+        function handleStarHover(e) {
+            const rating = parseInt(e.target.dataset.rating);
+            updateStarDisplay(rating, true);
+        }
+
+        function updateStarDisplay(rating, isHover = false) {
+            const stars = document.querySelectorAll('.star');
+            stars.forEach((star, index) => {
+                if (index < rating) {
+                    star.classList.add('active');
+                } else {
+                    star.classList.remove('active');
+                }
+            });
+        }
+    // CORRECTED NAVIGATION FUNCTIONS
+
+    // Function to start a completely new interview (redirect to start page)
+    function startNewInterview() {
+        const button = event.target;
+        const originalText = button.textContent;
+        
+        button.textContent = '🔄 Starting...';
+        button.disabled = true;
+        
+        // Clear session and redirect
+        fetch('/reset-emotion-session/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(() => {
+            window.location.href = '/start/';
+        })
+        .catch(error => {
+            console.error('Reset failed:', error);
+            button.textContent = originalText;
+            button.disabled = false;
+            // Still redirect even if reset fails
+            window.location.href = '/start/';
+        });
+    }
+
+    // Function to practice with the same category (new question, same category)
+    function practiceAgain() {
+        const category = sessionData.category || 'behavioral';
+        const button = event.target;
+        const originalText = button.textContent;
+        
+        button.textContent = '🔄 Loading...';
+        button.disabled = true;
+        
+        // Reset emotion session for new interview
+        fetch('/reset-emotion-session/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        }).finally(() => {
+            window.location.href = `/interview/?category=${category}`;
+        });
+    }
+
+    // Function to retry the exact same question
+    function retryQuestion() {
+        const category = sessionData.category || 'behavioral';
+        const question = sessionData.question;
+        
+        // Reset emotion session
+        fetch('/reset_emotion_session/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        }).finally(() => {
+            // Encode the question to pass it as a parameter
+            const encodedQuestion = encodeURIComponent(question);
+            window.location.href = `/interview/?category=${category}&question=${encodedQuestion}`;
+        });
+    }
+
+    // Enhanced function with loading states
+    function startNewInterviewWithLoading() {
+        const button = event.target;
+        const originalText = button.textContent;
+        
+        button.textContent = '🔄 Starting...';
+        button.disabled = true;
+        
+        // Clear session and redirect
+        fetch('/reset_emotion_session/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            }
+        })
+        .then(() => {
+            window.location.href = '/start/';
+        })
+        .catch(error => {
+            console.error('Reset failed:', error);
+            button.textContent = originalText;
+            button.disabled = false;
+            // Still redirect even if reset fails
+            window.location.href = '/start/';
+        });
+    }
+        function submitRating() {
+            const rating = sessionData.currentRating;
+            const notes = document.getElementById('rating-notes').value;
+            
+            if (!rating) {
+                alert('Please select a rating first.');
+                return;
+            }
+            
+            const statusDiv = document.getElementById('rating-status');
+            statusDiv.innerHTML = '<span class="loading">Submitting rating...</span>';
+            
+            fetch('/rate_feedback/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-CSRFToken': getCookie('csrftoken')
+                },
+                body: `user_id=${sessionData.user_id}&rating=${rating}&notes=${encodeURIComponent(notes)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    statusDiv.innerHTML = '<span class="success">✅ Thank you for your feedback!</span>';
+                    document.querySelector('.rating-section').style.opacity = '0.7';
+                } else {
+                    statusDiv.innerHTML = '<span class="error">❌ Error submitting rating.</span>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                statusDiv.innerHTML = '<span class="error">❌ Network error occurred.</span>';
+            });
+        }
+
+        // Navigation functions
+        function startNewInterview() {
+            window.location.href = '/';
+        }
+
+        function practiceAgain() {
+            const category = sessionData.category || 'behavioral';
+            window.location.href = `/interview/?category=${category}`;
+        }
+
+        function exportReport() {
+            // Generate comprehensive report data
+            const reportData = {
+                session_info: {
+                    timestamp: new Date().toISOString(),
+                    question: sessionData.question,
+                    category: sessionData.category,
+                    transcript: sessionData.transcript,
+                    word_count: sessionData.transcript.split(/\s+/).filter(w => w.length > 0).length
+                },
+                emotion_analysis: {
+                    detected_emotion: sessionData.raw_emotion,
+                    validated_emotion: sessionData.emotion,
+                    confidence: sessionData.emotion_confidence,
+                    validation_details: sessionData.validation_details
+                },
+                performance_metrics: sessionData.metrics,
+                feedback: document.getElementById('feedback-content').innerText,
+                system_info: {
+                    vectorizer_available: sessionData.vectorizer_available,
+                    validator_available: sessionData.validator_available,
+                    processing_time: "{{ processing_time|escapejs }}"
+                }
+            };
+            
+            // Create downloadable JSON file
+            const dataStr = JSON.stringify(reportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `interview-report-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Utility functions
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // Initialize any additional features
+        setTimeout(() => {
+            // Final check for metrics after page load
+            if (!sessionData.metrics || Object.keys(sessionData.metrics).length === 0) {
+                console.log('Final attempt to load metrics...');
+                generateBasicMetrics();
+            }
+        }, 3000);
+    </script>
 </body>
 </html>

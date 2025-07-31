@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Interview Analytics</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; color: #333; }
+        .nav-buttons { display: flex; gap: 10px; }
+        .nav-btn { padding: 10px 20px; border: 1px solid #ddd; background: white; cursor: pointer; border-radius: 4px; text-decoration: none; color: #333; }
+        .nav-btn:hover { background: #f0f0f0; }
+        .loading { text-align: center; padding: 40px; color: #007cba; }
+        .error { background: #f8d7da; color: #721c24; padding: 20px; border-radius: 4px; text-align: center; }
+        .analytics-section { background: white; margin-bottom: 20px; padding: 25px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+        .analytics-section h2 { margin-top: 0; color: #007cba; border-bottom: 2px solid #007cba; padding-bottom: 10px; }
+        .profile-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .stat-card { text-align: center; padding: 25px; background: #f8f9fa; border-radius: 8px; }
+        .stat-card h3 { margin: 0; font-size: 2.5em; color: #007cba; font-weight: bold; }
+        .stat-card p { margin: 15px 0 0 0; color: #666; font-size: 1.1em; }
+        .chart-container { margin: 20px 0; text-align: center; background: #f8f9fa; padding: 20px; border-radius: 8px; }
+        .trend-info { margin-top: 20px; padding: 15px; background: #e8f4fd; border-radius: 6px; }
+        .category-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+        .category-card { padding: 20px; background: #f8f9fa; border-radius: 8px; }
+        .category-card h4 { margin: 0 0 15px 0; color: #333; }
+        .score-bar { height: 12px; background: #e9ecef; border-radius: 6px; overflow: hidden; margin: 15px 0; }
+        .score-fill { height: 100%; background: linear-gradient(90deg, #ff6b6b, #feca57, #48dbfb, #0abde3); border-radius: 6px; }
+        .model-effectiveness { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; }
+        .model-card { padding: 20px; background: #f8f9fa; border-radius: 8px; }
+        .model-card h4 { margin: 0 0 15px 0; color: #333; }
+        .effectiveness-bar { height: 8px; background: #e9ecef; border-radius: 4px; overflow: hidden; margin: 15px 0; }
+        .effectiveness-fill { height: 100%; background: #28a745; border-radius: 4px; }
+        .sessions-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .session-card { padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 4px solid #007cba; }
+        .session-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .session-header h4 { margin: 0; color: #333; }
+        .session-date { font-size: 0.9em; color: #666; }
+        .session-details p { margin: 8px 0; font-size: 0.95em; }
+        .recommendations { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+        .recommendation-card { display: flex; padding: 20px; background: #e8f4fd; border-radius: 8px; border-left: 4px solid #007cba; }
+        .rec-icon { font-size: 2.5em; margin-right: 20px; }
+        .rec-content h4 { margin: 0 0 10px 0; color: #007cba; }
+        .rec-content p { margin: 0; color: #555; line-height: 1.4; }
+        .no-data { text-align: center; color: #666; font-style: italic; padding: 40px; }
+        .export-section { text-align: center; margin: 20px 0; }
+        .export-btn { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .export-btn:hover { background: #005a8b; }
+        .clear-btn { background: #dc3545; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; margin: 5px; }
+        .clear-btn:hover { background: #c82333; }
+        .debug-info { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 4px; margin: 10px 0; font-family: monospace; font-size: 0.9em; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 Your Interview Analytics</h1>
+            <div class="nav-buttons">
+                <a href="/start/" class="nav-btn">← Back to Start</a>
+                <button onclick="debugSessions()" class="nav-btn">🔍 Debug</button>
+                <button onclick="refreshData()" class="nav-btn">🔄 Refresh</button>
+            </div>
+        </div>
+
+        <div id="debug-info" class="debug-info" style="display: none;">
+            <!-- Debug information will be displayed here -->
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <p>Loading your analytics...</p>
+        </div>
+
+        <div id="analytics-content">
+            <!-- Profile Overview -->
+            <div class="analytics-section">
+                <h2>Profile Overview</h2>
+                <div class="profile-stats">
+                    <div class="stat-card">
+                        <h3 id="total-sessions">0</h3>
+                        <p>Total Sessions</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="average-rating">0.0</h3>
+                        <p>Average Score</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3 id="profile-completion">0%</h3>
+                        <p>Profile Complete</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Trend -->
+            <div class="analytics-section">
+                <h2>Recent Performance Trend</h2>
+                <div id="trend-chart" class="chart-container">
+                    <canvas id="trendCanvas" width="600" height="300"></canvas>
+                </div>
+                <div id="trend-summary" class="trend-info">
+                    <!-- Trend analysis will be populated here -->
+                </div>
+            </div>
+
+            <!-- Category Performance -->
+            <div class="analytics-section">
+                <h2>Performance by Category</h2>
+                <div id="category-performance" class="category-grid">
+                    <!-- Category performance cards will be populated here -->
+                </div>
+            </div>
+
+            <!-- Emotion Detection Accuracy -->
+            <div class="analytics-section">
+                <h2>Emotion Detection Accuracy</h2>
+                <div id="emotion-accuracy" class="model-effectiveness">
+                    <!-- Emotion accuracy data will be populated here -->
+                </div>
+            </div>
+
+            <!-- Recent Sessions -->
+            <div class="analytics-section">
+                <h2>Recent Sessions</h2>
+                <div id="recent-sessions" class="sessions-list">
+                    <!-- Recent sessions will be populated here -->
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div class="analytics-section">
+                <h2>Personalized Recommendations</h2>
+                <div id="recommendations" class="recommendations">
+                    <!-- Recommendations will be populated here -->
+                </div>
+            </div>
+
+            <!-- Data Management -->
+            <div class="analytics-section">
+                <h2>Data Management</h2>
+                <div class="export-section">
+                    <button onclick="exportAnalytics()" class="export-btn">📤 Export Analytics Data</button>
+                    <button onclick="clearAnalytics()" class="clear-btn">🗑️ Clear All Data</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="error-message" style="display: none;" class="error">
+            <p>Unable to load analytics. Please try again.</p>
+        </div>
+    </div>
+
+    <script>
+        let analyticsData = null;
+
+        document.addEventListener('DOMContentLoaded', function() {
+            loadAnalytics();
+        });
+
+        async function loadAnalytics() {
+            const loading = document.getElementById('loading');
+            const content = document.getElementById('analytics-content');
+            const error = document.getElementById('error-message');
+            
+            loading.style.display = 'block';
+            content.style.display = 'none';
+            error.style.display = 'none';
+            
+            try {
+                console.log('Loading analytics data...');
+                
+                // Fetch analytics data from Django backend
+                const response = await fetch('/get-session-analytics/');
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                analyticsData = await response.json();
+                console.log('Analytics data loaded:', analyticsData);
+                
+                if (analyticsData.success) {
+                    populateAnalytics(analyticsData);
+                    loading.style.display = 'none';
+                    content.style.display = 'block';
+                } else {
+                    throw new Error(analyticsData.error || 'Failed to load analytics');
+                }
+                
+            } catch (e) {
+                console.error('Analytics loading error:', e);
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                
+                // Show error details in debug info
+                const debugDiv = document.getElementById('debug-info');
+                debugDiv.innerHTML = `<strong>Error:</strong> ${e.message}`;
+                debugDiv.style.display = 'block';
+            }
+        }
+
+        function populateAnalytics(analytics) {
+            console.log('Populating analytics with data:', analytics);
+            
+            // Profile stats
+            document.getElementById('total-sessions').textContent = analytics.total_sessions || 0;
+            document.getElementById('average-rating').textContent = (analytics.summary_stats?.average_overall_score || 0).toFixed(1);
+            document.getElementById('profile-completion').textContent = Math.round(analytics.profile_completion || 0) + '%';
+
+            // Recent performance trend
+            if (analytics.improvement_trend && analytics.improvement_trend.length > 0) {
+                drawPerformanceChart(analytics.improvement_trend);
+                showTrendSummary(analytics.improvement_trend);
+            } else {
+                document.getElementById('trend-chart').innerHTML = '<p class="no-data">Complete more sessions to see your performance trend.</p>';
+                document.getElementById('trend-summary').innerHTML = '<p class="no-data">No trend data available yet.</p>';
+            }
+
+            // Category performance
+            if (analytics.category_performance && Object.keys(analytics.category_performance).length > 0) {
+                showCategoryPerformance(analytics.category_performance);
+            } else {
+                document.getElementById('category-performance').innerHTML = '<p class="no-data">No category data available yet.</p>';
+            }
+
+            // Emotion accuracy
+            if (analytics.emotion_accuracy && Object.keys(analytics.emotion_accuracy).length > 0) {
+                showEmotionAccuracy(analytics.emotion_accuracy);
+            } else {
+                document.getElementById('emotion-accuracy').innerHTML = '<p class="no-data">Complete more sessions to see emotion detection accuracy.</p>';
+            }
+
+            // Recent sessions
+            if (analytics.recent_sessions && analytics.recent_sessions.length > 0) {
+                showRecentSessions(analytics.recent_sessions);
+            } else {
+                document.getElementById('recent-sessions').innerHTML = '<p class="no-data">No recent sessions found.</p>';
+            }
+
+            // Recommendations
+            if (analytics.recommendations && analytics.recommendations.length > 0) {
+                showRecommendations(analytics.recommendations);
+            } else {
+                generateDefaultRecommendations(analytics);
+            }
+        }
+
+        function drawPerformanceChart(trendData) {
+            const canvas = document.getElementById('trendCanvas');
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if (trendData.length < 2) {
+                ctx.fillStyle = '#666';
+                ctx.font = '16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Complete more sessions to see trend chart', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
+            // Setup chart dimensions
+            const padding = 50;
+            const chartWidth = canvas.width - 2 * padding;
+            const chartHeight = canvas.height - 2 * padding;
+            
+            // Get scores
+            const scores = trendData.map(d => d.score);
+            const maxScore = Math.max(...scores, 1);
+            const minScore = Math.min(...scores, 0);
+            const scoreRange = maxScore - minScore || 1;
+            
+            // Draw axes
+            ctx.strokeStyle = '#ddd';
+            ctx.lineWidth = 1;
+            
+            // Y-axis
+            ctx.beginPath();
+            ctx.moveTo(padding, padding);
+            ctx.lineTo(padding, canvas.height - padding);
+            ctx.stroke();
+            
+            // X-axis
+            ctx.beginPath();
+            ctx.moveTo(padding, canvas.height - padding);
+            ctx.lineTo(canvas.width - padding, canvas.height - padding);
+            ctx.stroke();
+            
+            // Draw line chart
+            ctx.strokeStyle = '#007cba';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            
+            trendData.forEach((point, index) => {
+                const x = padding + (index / (trendData.length - 1)) * chartWidth;
+                const y = canvas.height - padding - ((point.score - minScore) / scoreRange) * chartHeight;
+                
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            
+            ctx.stroke();
+            
+            // Draw points
+            ctx.fillStyle = '#007cba';
+            trendData.forEach((point, index) => {
+                const x = padding + (index / (trendData.length - 1)) * chartWidth;
+                const y = canvas.height - padding - ((point.score - minScore) / scoreRange) * chartHeight;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+            });
+            
+            // Labels
+            ctx.fillStyle = '#666';
+            ctx.font = '12px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Performance Over Time', canvas.width / 2, 20);
+            
+            // Y-axis labels
+            ctx.textAlign = 'right';
+            for (let i = 0; i <= 4; i++) {
+                const value = minScore + (scoreRange * i / 4);
+                const y = canvas.height - padding - ((i / 4) * chartHeight);
+                ctx.fillText(value.toFixed(1), padding - 10, y + 4);
+            }
+        }
+
+        function showTrendSummary(trendData) {
+            const summaryDiv = document.getElementById('trend-summary');
+            
+            if (trendData.length < 2) {
+                summaryDiv.innerHTML = '<p>Complete more sessions to see trend analysis.</p>';
+                return;
+            }
+            
+            const firstScore = trendData[0].score;
+            const lastScore = trendData[trendData.length - 1].score;
+            const improvement = lastScore - firstScore;
+            
+            let summaryText = '';
+            let summaryColor = '';
+            
+            if (improvement > 0.1) {
+                summaryText = `📈 Great progress! Your performance improved by ${(improvement * 100).toFixed(1)}% over recent sessions.`;
+                summaryColor = 'green';
+            } else if (improvement > -0.1) {
+                summaryText = `📊 Your performance is stable. Consider focusing on specific areas for improvement.`;
+                summaryColor = 'blue';
+            } else {
+                summaryText = `📉 Recent sessions show room for improvement. Focus on fundamentals and practice regularly.`;
+                summaryColor = 'orange';
+            }
+            
+            summaryDiv.innerHTML = `<p style="color: ${summaryColor}; font-weight: bold;">${summaryText}</p>`;
+        }
+
+        function showCategoryPerformance(categoryData) {
+            const container = document.getElementById('category-performance');
+            
+            const categories = Object.entries(categoryData).map(([category, score]) => ({
+                category: category.charAt(0).toUpperCase() + category.slice(1),
+                score: score,
+                percentage: Math.round(score * 100)
+            }));
+            
+            categories.sort((a, b) => b.score - a.score);
+            
+            const html = categories.map(cat => `
+                <div class="category-card">
+                    <h4>${cat.category}</h4>
+                    <div class="score-bar">
+                        <div class="score-fill" style="width: ${cat.percentage}%"></div>
+                    </div>
+                    <p>${cat.percentage}% average performance</p>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function showEmotionAccuracy(accuracyData) {
+            const container = document.getElementById('emotion-accuracy');
+            
+            const emotions = Object.entries(accuracyData).map(([emotion, accuracy]) => ({
+                emotion: emotion.charAt(0).toUpperCase() + emotion.slice(1),
+                accuracy: accuracy,
+                percentage: Math.round(accuracy * 100)
+            }));
+            
+            emotions.sort((a, b) => b.accuracy - a.accuracy);
+            
+            const html = emotions.map(emo => `
+                <div class="model-card">
+                    <h4>${emo.emotion} Detection</h4>
+                    <p>Accuracy: ${emo.percentage}%</p>
+                    <div class="effectiveness-bar">
+                        <div class="effectiveness-fill" style="width: ${emo.percentage}%"></div>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function showRecentSessions(sessions) {
+            const container = document.getElementById('recent-sessions');
+            
+            const html = sessions.map(session => {
+                const date = new Date(session.created_at || session.timestamp).toLocaleDateString();
+                const overallScore = Math.round((session.overall_score || 0) * 100);
+                
+                return `
+                    <div class="session-card">
+                        <div class="session-header">
+                            <h4>${session.category.charAt(0).toUpperCase() + session.category.slice(1)}</h4>
+                            <span class="session-date">${date}</span>
+                        </div>
+                        <div class="session-details">
+                            <p><strong>Overall Score:</strong> ${overallScore}%</p>
+                            <p><strong>Emotion:</strong> ${(session.validated_emotion || session.detected_emotion || 'neutral').charAt(0).toUpperCase() + (session.validated_emotion || session.detected_emotion || 'neutral').slice(1)}</p>
+                            <p><strong>Confidence:</strong> ${Math.round((session.emotion_confidence || 0) * 100)}%</p>
+                            <p><strong>Answer Length:</strong> ${session.answer_length || 0} words</p>
+                            ${session.user_rating ? `<p><strong>Your Rating:</strong> ${'⭐'.repeat(session.user_rating)}</p>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function showRecommendations(recommendations) {
+            const container = document.getElementById('recommendations');
+            
+            const html = recommendations.map(rec => `
+                <div class="recommendation-card">
+                    <div class="rec-icon">${rec.icon}</div>
+                    <div class="rec-content">
+                        <h4>${rec.title}</h4>
+                        <p>${rec.description}</p>
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        function generateDefaultRecommendations(analytics) {
+            const container = document.getElementById('recommendations');
+            const recommendations = [];
+            
+            // Session frequency recommendation
+            if (analytics.total_sessions === 0) {
+                recommendations.push({
+                    icon: '🚀',
+                    title: 'Start Your Journey',
+                    description: 'Take your first mock interview to begin building your skills and confidence.'
+                });
+            } else if (analytics.total_sessions < 5) {
+                recommendations.push({
+                    icon: '🔄',
+                    title: 'Build Consistency',
+                    description: 'Practice regularly to see improvement. Try to complete 2-3 sessions per week.'
+                });
+            }
+            
+            // Score-based recommendations
+            const avgScore = analytics.summary_stats?.average_overall_score || 0;
+            if (avgScore > 0) {
+                if (avgScore < 0.6) {
+                    recommendations.push({
+                        icon: '📚',
+                        title: 'Focus on Fundamentals',
+                        description: 'Consider reviewing basic interview techniques and the STAR method for answering questions.'
+                    });
+                } else if (avgScore >= 0.8) {
+                    recommendations.push({
+                        icon: '🎯',
+                        title: 'Advanced Practice',
+                        description: 'Great progress! Try more challenging scenarios and leadership-focused questions.'
+                    });
+                }
+            }
+            
+            // Category-based recommendations
+            const categoryEntries = Object.entries(analytics.category_performance || {});
+            if (categoryEntries.length > 0) {
+                const lowestCategory = categoryEntries.sort(([,a], [,b]) => a - b)[0];
+                if (lowestCategory[1] < 0.6) {
+                    recommendations.push({
+                        icon: '🎯',
+                        title: `Improve ${lowestCategory[0].charAt(0).toUpperCase() + lowestCategory[0].slice(1)} Skills`,
+                        description: `This category needs attention. Focus on practicing more ${lowestCategory[0]} questions.`
+                    });
+                }
+            }
+            
+            // Profile completion recommendation
+            if ((analytics.profile_completion || 0) < 80) {
+                recommendations.push({
+                    icon: '👤',
+                    title: 'Complete Your Profile',
+                    description: 'A complete profile helps provide more personalized feedback and recommendations.'
+                });
+            }
+            
+            // Default recommendation if none apply
+            if (recommendations.length === 0) {
+                recommendations.push({
+                    icon: '🌟',
+                    title: 'Keep Growing',
+                    description: 'You\'re doing well! Continue practicing different question types to maintain your skills.'
+                });
+            }
+            
+            showRecommendations(recommendations);
+        }
+
+        async function debugSessions() {
+            const debugDiv = document.getElementById('debug-info');
+            
+            try {
+                const response = await fetch('/debug-sessions/');
+                const data = await response.json();
+                
+                const debugHTML = `
+                    <strong>Debug Information:</strong><br>
+                    User ID: ${data.user_id || 'Not set'}<br>
+                    Profile ID: ${data.profile_id || 'Not found'}<br>
+                    Total Sessions in DB: ${data.total_sessions || 0}<br>
+                    Profile Session Count: ${data.profile_session_count || 0}<br>
+                    Last Session ID: ${data.last_session_id || 'None'}<br>
+                    Recent Sessions: ${JSON.stringify(data.recent_sessions || [], null, 2)}
+                `;
+                
+                debugDiv.innerHTML = debugHTML;
+                debugDiv.style.display = 'block';
+                
+                console.log('Debug data:', data);
+                
+            } catch (error) {
+                debugDiv.innerHTML = `<strong>Debug Error:</strong> ${error.message}`;
+                debugDiv.style.display = 'block';
+            }
+        }
+
+        function refreshData() {
+            loadAnalytics();
+        }
+
+        function exportAnalytics() {
+            if (!analyticsData) {
+                alert('No analytics data to export');
+                return;
+            }
+            
+            const exportData = {
+                ...analyticsData,
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = 'interview_analytics.json';
+            link.click();
+            URL.revokeObjectURL(url);
+        }
+
+        async function clearAnalytics() {
+            if (!confirm('Are you sure you want to clear all analytics data? This cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/clear-user-analytics/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    alert(result.message);
+                    loadAnalytics(); // Refresh the page
+                } else {
+                    alert('Error clearing data: ' + result.error);
+                }
+                
+            } catch (error) {
+                alert('Error clearing analytics: ' + error.message);
+            }
+        }
+
+        // Helper function to get CSRF token
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+    </script>
+</body>
+</html>

@@ -1,22 +1,646 @@
-<!-- templates/start.html -->
-{% load static %}
 <!DOCTYPE html>
 <html>
 <head>
     <title>Start Interview</title>
-    <link rel="stylesheet" href="{% static 'start.css' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #333; margin-bottom: 30px; }
+        .profile-actions { margin: 10px 0; text-align: center; }
+        .profile-btn { margin: 5px; padding: 10px 20px; border: 1px solid #ddd; background: #f9f9f9; cursor: pointer; border-radius: 4px; font-size: 14px; }
+        .profile-btn:hover { background: #e9e9e9; }
+        .profile-btn.secondary { background: #fff; border-color: #007cba; color: #007cba; }
+        .profile-btn.primary { background: #007cba; color: white; border-color: #007cba; }
+        .profile-btn.primary:hover { background: #005a8b; }
+        .category-buttons { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0; }
+        .category-btn { padding: 25px; border: 2px solid #ddd; background: #f9f9f9; cursor: pointer; text-align: center; border-radius: 8px; transition: all 0.3s; text-decoration: none; color: inherit; display: block; }
+        .category-btn:hover { border-color: #007cba; background: #f0f8ff; transform: translateY(-2px); }
+        .category-btn .emoji { font-size: 2.5em; display: block; margin-bottom: 15px; }
+        .category-btn .title { font-weight: bold; display: block; margin-bottom: 8px; font-size: 1.1em; }
+        .category-btn .desc { font-size: 0.9em; color: #666; line-height: 1.3; }
+        .advanced-options { margin: 30px 0; background: #f8f9fa; padding: 20px; border-radius: 6px; }
+        .advanced-options summary { cursor: pointer; font-weight: bold; margin-bottom: 15px; }
+        .options-content { padding: 15px 0; }
+        .options-content label { display: block; margin: 10px 0; }
+        .options-content input[type="checkbox"] { margin-right: 8px; }
+        .options-content select { margin-left: 10px; padding: 5px; }
+        .profile-summary { background: #e8f4fd; padding: 20px; border-radius: 8px; margin-bottom: 20px; border-left: 4px solid #007cba; }
+        .profile-summary h3 { margin-top: 0; color: #007cba; }
+        .profile-info { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 15px 0; }
+        .profile-info p { margin: 5px 0; font-size: 0.9em; }
+        .success-message { background: #d4edda; color: #155724; padding: 15px; margin: 15px 0; border-radius: 4px; border: 1px solid #c3e6cb; }
+        .error-message { background: #f8d7da; color: #721c24; padding: 15px; margin: 15px 0; border-radius: 4px; border: 1px solid #f5c6cb; }
+        .modal { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: white; padding: 30px; border-radius: 8px; max-width: 500px; width: 90%; max-height: 80vh; overflow-y: auto; }
+        .modal h3 { margin-top: 0; color: #007cba; }
+        .form-group { margin: 15px 0; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group input, .form-group select, .form-group textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 4px; box-sizing: border-box; }
+        .form-group textarea { height: 80px; resize: vertical; }
+        .form-actions { margin-top: 20px; text-align: right; }
+        .form-actions button { margin-left: 10px; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
+        .form-actions button[type="submit"] { background: #007cba; color: white; }
+        .form-actions button[type="button"] { background: #6c757d; color: white; }
+        hr { border: none; border-top: 1px solid #eee; margin: 30px 0; }
+        .loading { display: none; text-align: center; margin: 20px 0; }
+        .loading::after { content: ''; animation: dots 1.5s infinite; }
+        @keyframes dots { 0%, 20% { content: '.'; } 40% { content: '..'; } 60% { content: '...'; } 80%, 100% { content: ''; } }
+        .checkbox-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+        .checkbox-group label { margin: 5px 0; }
+    </style>
 </head>
 <body>
     <div class="container">
-        <h1>Welcome to the Mock Interview App</h1>
-        <p>Select a category to begin your interview:</p>
+        <h1>🎯 Welcome to the Mock Interview App</h1>
+        
+        <!-- Profile Status Section -->
+        <div id="profile-section">
+            <div id="no-profile" style="display: none;">
+                <p>🎯 <strong>Get Personalized Feedback!</strong></p>
+                <p>Create a profile to receive feedback tailored to your experience level and goals.</p>
+                <div class="profile-actions">
+                    <button onclick="createProfile()" class="profile-btn primary">Create Profile</button>
+                    <button onclick="loadExistingProfile()" class="profile-btn secondary">Load Existing Profile</button>
+                </div>
+                <hr>
+            </div>
+            
+            <div id="has-profile" style="display: none;">
+                <div class="profile-summary">
+                    <h3>👤 Your Profile</h3>
+                    <div id="profile-info" class="profile-info">
+                        <!-- Profile info will be loaded here -->
+                    </div>
+                    <div class="profile-actions">
+                        <button onclick="editProfile()" class="profile-btn secondary">Edit Profile</button>
+                        <button onclick="viewAnalytics()" class="profile-btn secondary">View Analytics</button>
+                        <button onclick="exportProfile()" class="profile-btn secondary">Export Profile</button>
+                    </div>
+                </div>
+                <hr>
+            </div>
+        </div>
 
-        <form action="{% url 'interview_page' %}" method="get">
-            <button type="submit" name="category" value="behavioral">Behavioral Questions 🧠</button>
-            <button type="submit" name="category" value="situational">Situational Questions 🎭</button>
-            <button type="submit" name="category" value="technical">Technical Questions 🔧</button>
-            <button type="submit" name="category" value="motivational">Motivational Questions 🔥</button>
-        </form>
+        <!-- Interview Category Selection -->
+        <div class="interview-section">
+            <p style="text-align: center; font-size: 1.1em; margin-bottom: 30px;">Select a category to begin your interview:</p>
+
+            <div class="category-buttons">
+                <a href="#" onclick="startInterview('behavioral')" class="category-btn">
+                    <span class="emoji">🧠</span>
+                    <span class="title">Behavioral Questions</span>
+                    <span class="desc">Tell me about a time when...</span>
+                </a>
+                
+                <a href="#" onclick="startInterview('situational')" class="category-btn">
+                    <span class="emoji">🎭</span>
+                    <span class="title">Situational Questions</span>
+                    <span class="desc">What would you do if...</span>
+                </a>
+                
+                <a href="#" onclick="startInterview('technical')" class="category-btn">
+                    <span class="emoji">🔧</span>
+                    <span class="title">Technical Questions</span>
+                    <span class="desc">Design and implementation challenges</span>
+                </a>
+                
+                <a href="#" onclick="startInterview('motivational')" class="category-btn">
+                    <span class="emoji">🔥</span>
+                    <span class="title">Motivational Questions</span>
+                    <span class="desc">Why do you want this role?</span>
+                </a>
+            </div>
+
+            <!-- Advanced Options -->
+            <div class="advanced-options">
+                <details>
+                    <summary>⚙️ Advanced Options</summary>
+                    <div class="options-content">
+                        <label>
+                            <input type="checkbox" id="disable_camera" value="true">
+                            Disable camera (emotion detection off)
+                        </label>
+                        
+                        <div class="role-level-selector" id="role-level-section" style="display: none;">
+                            <label for="role_level">Target Role Level:</label>
+                            <select id="role_level">
+                                <option value="junior">Junior Level</option>
+                                <option value="mid" selected>Mid Level</option>
+                                <option value="senior">Senior Level</option>
+                                <option value="lead">Lead/Principal</option>
+                            </select>
+                        </div>
+                    </div>
+                </details>
+            </div>
+        </div>
+
+        <!-- Status Messages -->
+        <div id="status-messages"></div>
+        <div id="loading" class="loading">Starting interview</div>
     </div>
+
+    <!-- Profile Creation Modal -->
+    <div id="profile-create-modal" class="modal">
+        <div class="modal-content">
+            <h3>Create Your Profile</h3>
+            <form id="create-profile-form">
+                <div class="form-group">
+                    <label for="username">Name/Username:</label>
+                    <input type="text" id="username" name="username" placeholder="Enter your name">
+                </div>
+                
+                <div class="form-group">
+                    <label for="experience_level">Experience Level:</label>
+                    <select id="experience_level" name="experience_level">
+                        <option value="junior">Junior (0-2 years)</option>
+                        <option value="mid" selected>Mid-level (3-5 years)</option>
+                        <option value="senior">Senior (6-10 years)</option>
+                        <option value="lead">Lead/Principal (10+ years)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="industry">Industry:</label>
+                    <select id="industry" name="industry">
+                        <option value="technology" selected>Technology</option>
+                        <option value="finance">Finance</option>
+                        <option value="healthcare">Healthcare</option>
+                        <option value="consulting">Consulting</option>
+                        <option value="education">Education</option>
+                        <option value="retail">Retail</option>
+                        <option value="manufacturing">Manufacturing</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="role_type">Role Type:</label>
+                    <select id="role_type" name="role_type">
+                        <option value="technical" selected>Technical</option>
+                        <option value="management">Management</option>
+                        <option value="product">Product</option>
+                        <option value="design">Design</option>
+                        <option value="sales">Sales</option>
+                        <option value="marketing">Marketing</option>
+                        <option value="operations">Operations</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="current_job_title">Current Job Title:</label>
+                    <input type="text" id="current_job_title" name="current_job_title" placeholder="e.g. Software Engineer">
+                </div>
+                
+                <div class="form-group">
+                    <label for="target_role">Target Role:</label>
+                    <input type="text" id="target_role" name="target_role" placeholder="e.g. Senior Software Engineer">
+                </div>
+                
+                <div class="form-group">
+                    <label for="learning_preference">Learning Preference:</label>
+                    <select id="learning_preference" name="learning_preference">
+                        <option value="detailed" selected>Detailed feedback</option>
+                        <option value="concise">Concise feedback</option>
+                        <option value="encouraging">Encouraging tone</option>
+                        <option value="direct">Direct/critical</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="focus_areas">Focus Areas (comma-separated):</label>
+                    <input type="text" id="focus_areas" name="focus_areas" placeholder="e.g. leadership, technical skills, communication">
+                </div>
+                
+                <div class="form-group">
+                    <label for="interview_goals">Interview Goals:</label>
+                    <textarea id="interview_goals" name="interview_goals" placeholder="What do you want to improve in your interview skills?"></textarea>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="submit">Create Profile</button>
+                    <button type="button" onclick="closeModal('profile-create-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Profile Loading Modal -->
+    <div id="profile-modal" class="modal">
+        <div class="modal-content">
+            <h3>Load Existing Profile</h3>
+            <form id="load-profile-form">
+                <div class="form-group">
+                    <label for="existing_user_id">User ID:</label>
+                    <input type="text" id="existing_user_id" name="user_id" placeholder="Enter your user ID">
+                </div>
+                <p style="font-size: 0.9em; color: #666;">Or import a profile file:</p>
+                <div class="form-group">
+                    <input type="file" id="import-file" accept=".json" onchange="handleImport(event)">
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Load Profile</button>
+                    <button type="button" onclick="closeModal('profile-modal')">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Profile Management System
+        const ProfileManager = {
+            save: function(profile) {
+                profile.updated_at = new Date().toISOString();
+                localStorage.setItem('userProfile', JSON.stringify(profile));
+                if (profile.user_id) {
+                    localStorage.setItem('user_id', profile.user_id);
+                }
+                return profile.user_id;
+            },
+            
+            load: function() {
+                const profileData = localStorage.getItem('userProfile');
+                return profileData ? JSON.parse(profileData) : null;
+            },
+            
+            exists: function() {
+                return localStorage.getItem('userProfile') !== null;
+            },
+            
+            export: function() {
+                return JSON.stringify(this.load(), null, 2);
+            },
+            
+            import: function(profileJson) {
+                try {
+                    const profile = JSON.parse(profileJson);
+                    this.save(profile);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            },
+            
+            incrementSessionCount: function() {
+                const profile = this.load();
+                if (profile) {
+                    profile.session_count = (profile.session_count || 0) + 1;
+                    this.save(profile);
+                }
+            }
+        };
+
+        // Global variables
+        let currentProfile = null;
+
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            checkForExistingProfile();
+            handleURLParams();
+            setupEventListeners();
+        });
+
+        function setupEventListeners() {
+            // Profile creation form
+            document.getElementById('create-profile-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                handleCreateProfile();
+            });
+
+            // Profile loading form
+            document.getElementById('load-profile-form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                handleLoadProfile();
+            });
+
+            // Close modals when clicking outside
+            document.addEventListener('click', function(e) {
+                if (e.target.classList.contains('modal')) {
+                    closeModal(e.target.id);
+                }
+            });
+        }
+
+        function checkForExistingProfile() {
+            currentProfile = ProfileManager.load();
+            
+            if (currentProfile) {
+                showHasProfile(currentProfile);
+            } else {
+                showNoProfile();
+            }
+        }
+
+        function handleURLParams() {
+            const urlParams = new URLSearchParams(window.location.search);
+            
+            if (urlParams.get('profile_created') === 'true') {
+                showMessage('✅ Profile created successfully! Your feedback will now be personalized.', 'success');
+                // Clean up URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+            }
+        }
+
+        function showNoProfile() {
+            document.getElementById('no-profile').style.display = 'block';
+            document.getElementById('has-profile').style.display = 'none';
+            document.getElementById('role-level-section').style.display = 'block';
+        }
+
+        function showHasProfile(profile) {
+            document.getElementById('no-profile').style.display = 'none';
+            document.getElementById('has-profile').style.display = 'block';
+
+            const profileInfo = document.getElementById('profile-info');
+            profileInfo.innerHTML = `
+                <p><strong>Name:</strong> ${profile.username || 'Anonymous'}</p>
+                <p><strong>Experience Level:</strong> ${capitalizeFirst(profile.experience_level || 'Not specified')}</p>
+                <p><strong>Industry:</strong> ${capitalizeFirst(profile.industry || 'Not specified')}</p>
+                <p><strong>Role Type:</strong> ${capitalizeFirst(profile.role_type || 'Not specified')}</p>
+                <p><strong>Learning Style:</strong> ${capitalizeFirst(profile.learning_preference || 'Not specified')}</p>
+                <p><strong>Sessions Completed:</strong> ${profile.session_count || 0}</p>
+            `;
+
+            // Hide the manual role level dropdown since profile has this info
+            document.getElementById('role-level-section').style.display = 'none';
+        }
+
+        // Main navigation function - this is the key function that was missing!
+        function startInterview(category) {
+            showLoading(true);
+            
+            // Increment session count
+            ProfileManager.incrementSessionCount();
+            
+            // Build URL parameters
+            const params = new URLSearchParams();
+            params.append('category', category);
+            
+            // Add camera disable option if checked
+            if (document.getElementById('disable_camera').checked) {
+                params.append('disable_camera', 'true');
+            }
+            
+            // Add role level - either from profile or manual selection
+            let roleLevel = 'mid'; // default
+            if (currentProfile && currentProfile.experience_level) {
+                roleLevel = currentProfile.experience_level;
+            } else {
+                const roleLevelSelect = document.getElementById('role_level');
+                if (roleLevelSelect) {
+                    roleLevel = roleLevelSelect.value;
+                }
+            }
+            params.append('role_level', roleLevel);
+            
+            // Navigate to interview page
+            const url = `/interview/?${params.toString()}`;
+            console.log('Navigating to:', url);
+            
+            // Add a small delay to show loading, then navigate
+            setTimeout(() => {
+                window.location.href = url;
+            }, 500);
+        }
+
+        function createProfile() {
+            document.getElementById('profile-create-modal').style.display = 'flex';
+        }
+
+        function loadExistingProfile() {
+            document.getElementById('profile-modal').style.display = 'flex';
+        }
+
+        function editProfile() {
+            if (currentProfile) {
+                // Populate form with existing data
+                populateProfileForm(currentProfile);
+                document.getElementById('profile-create-modal').style.display = 'flex';
+            }
+        }
+
+        function populateProfileForm(profile) {
+            const form = document.getElementById('create-profile-form');
+            
+            form.username.value = profile.username || '';
+            form.experience_level.value = profile.experience_level || 'mid';
+            form.industry.value = profile.industry || 'technology';
+            form.role_type.value = profile.role_type || 'technical';
+            form.current_job_title.value = profile.current_job_title || '';
+            form.target_role.value = profile.target_role || '';
+            form.learning_preference.value = profile.learning_preference || 'detailed';
+            form.focus_areas.value = (profile.focus_areas || []).join(', ');
+            form.interview_goals.value = profile.interview_goals || '';
+        }
+
+        function handleCreateProfile() {
+            const form = document.getElementById('create-profile-form');
+            const formData = new FormData(form);
+            
+            showLoading(true);
+            
+            // Create profile object
+            const profileData = {
+                username: formData.get('username') || `user_${Date.now()}`,
+                experience_level: formData.get('experience_level'),
+                industry: formData.get('industry'),
+                role_type: formData.get('role_type'),
+                current_job_title: formData.get('current_job_title'),
+                target_role: formData.get('target_role'),
+                learning_preference: formData.get('learning_preference'),
+                focus_areas: formData.get('focus_areas').split(',').map(s => s.trim()).filter(s => s),
+                interview_goals: formData.get('interview_goals'),
+                session_count: 0,
+                created_at: new Date().toISOString(),
+                user_id: generateUserId()
+            };
+
+            // Try to send to server first, then save locally
+            fetch('/create_profile/', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCsrfToken(),
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(profileData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    profileData.user_id = data.user_id;
+                }
+                
+                // Save locally regardless of server response
+                ProfileManager.save(profileData);
+                currentProfile = profileData;
+                
+                showLoading(false);
+                closeModal('profile-create-modal');
+                showHasProfile(profileData);
+                showMessage('✅ Profile created successfully!', 'success');
+            })
+            .catch(error => {
+                console.log('Server unavailable, saving locally only');
+                
+                // Save locally even if server fails
+                ProfileManager.save(profileData);
+                currentProfile = profileData;
+                
+                showLoading(false);
+                closeModal('profile-create-modal');
+                showHasProfile(profileData);
+                showMessage('✅ Profile created and saved locally!', 'success');
+            });
+        }
+
+        function handleLoadProfile() {
+            const userId = document.getElementById('existing_user_id').value.trim();
+            
+            if (!userId) {
+                showMessage('Please enter a user ID', 'error');
+                return;
+            }
+            
+            showLoading(true);
+            
+            // Try to load from server
+            fetch(`/get_profile/?user_id=${encodeURIComponent(userId)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    ProfileManager.save(data.profile);
+                    currentProfile = data.profile;
+                    
+                    showLoading(false);
+                    closeModal('profile-modal');
+                    showHasProfile(data.profile);
+                    showMessage('✅ Profile loaded successfully!', 'success');
+                } else {
+                    throw new Error(data.error || 'Profile not found');
+                }
+            })
+            .catch(error => {
+                showLoading(false);
+                showMessage('❌ Could not load profile: ' + error.message, 'error');
+            });
+        }
+
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const profileData = JSON.parse(e.target.result);
+                    ProfileManager.save(profileData);
+                    currentProfile = profileData;
+                    
+                    closeModal('profile-modal');
+                    showHasProfile(profileData);
+                    showMessage('✅ Profile imported successfully!', 'success');
+                } catch (error) {
+                    showMessage('❌ Invalid profile file', 'error');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        function viewAnalytics() {
+            if (currentProfile && currentProfile.user_id) {
+                window.open(`/analytics/?user_id=${currentProfile.user_id}`, '_blank');
+            } else {
+                showMessage('No analytics available yet. Complete some interviews first!', 'error');
+            }
+        }
+
+        function exportProfile() {
+            if (!currentProfile) {
+                showMessage('No profile to export', 'error');
+                return;
+            }
+            
+            const dataStr = ProfileManager.export();
+            const dataBlob = new Blob([dataStr], {type: 'application/json'});
+            const url = URL.createObjectURL(dataBlob);
+            
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `interview_profile_${currentProfile.username || 'user'}_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            
+            showMessage('✅ Profile exported successfully!', 'success');
+        }
+
+        function closeModal(modalId) {
+            if (modalId) {
+                document.getElementById(modalId).style.display = 'none';
+            } else {
+                // Close all modals
+                document.querySelectorAll('.modal').forEach(modal => {
+                    modal.style.display = 'none';
+                });
+            }
+        }
+
+        function showMessage(message, type = 'success') {
+            const messagesContainer = document.getElementById('status-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `${type}-message`;
+            messageDiv.textContent = message;
+            
+            messagesContainer.appendChild(messageDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentNode) {
+                    messageDiv.parentNode.removeChild(messageDiv);
+                }
+            }, 5000);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').style.display = show ? 'block' : 'none';
+        }
+
+        // Utility functions
+        function capitalizeFirst(str) {
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        function generateUserId() {
+            return `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        }
+
+        function getCsrfToken() {
+            // Try to get CSRF token from meta tag or cookie
+            const metaToken = document.querySelector('meta[name="csrf-token"]');
+            if (metaToken) return metaToken.getAttribute('content');
+            
+            // Fallback: try to get from cookie
+            const cookieValue = document.cookie
+                .split('; ')
+                .find(row => row.startsWith('csrftoken='))
+                ?.split('=')[1];
+            
+            return cookieValue || '';
+        }
+
+        // Debug function
+        function debugInfo() {
+            console.log('Current Profile:', currentProfile);
+            console.log('Local Storage:', localStorage.getItem('userProfile'));
+            console.log('User ID:', localStorage.getItem('user_id'));
+        }
+
+        // Make debug function available globally
+        window.debugInfo = debugInfo;
+    </script>
 </body>
 </html>

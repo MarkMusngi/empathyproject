@@ -35,5 +35,35 @@ Ensure you have the following installed:
 pip install opencv-python deepface SpeechRecognition requests pyaudio
 
 
+# Core Django and web framework
+pip install django
+pip install djangorestframework  # If using REST APIs
+
+# Upgrade pip first
+pip install --upgrade pip
+
+# Install core dependencies
+pip install numpy scipy
+pip install tensorflow
+pip install django
+pip install opencv-python
+pip install deepface
+pip install SpeechRecognition
+pip install pyaudio
+pip install pydub
+pip install sentence-transformers
+pip install scikit-learn
+pip install vaderSentiment
+pip install requests
+
+# Run Django migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Create superuser (optional)
+python manage.py createsuperuser
+
+# Start development server
+python manage.py runserver
 
 python manage.py runserver 127.0.0.1:8001
