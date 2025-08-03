@@ -609,7 +609,10 @@
                 <!-- ADD THIS NEW BADGE: -->
                 <span class="feedback-badge" id="model-type">🤖 AI Model: {{ user_profile.preferred_feedback_model|default:"Adaptive" }}</span>
             </div>
-            
+            <div class="coach-feedback mt-4">
+                <h3><span class="section-icon">🤝</span> Coach’s Encouragement</h3>
+                <p>{{ empathic_feedback }}</p>
+            </div>
             <div class="feedback-content" id="feedback-content">{{ feedback }}</div>
             
             {% if show_rating %}

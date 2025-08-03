@@ -35,6 +35,7 @@ from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404
 from .models import UserProfile, InterviewSession
 from .feedback_models import FeedbackContext, create_feedback_context
+import subprocess
 
 from django.db import transaction
 
@@ -850,6 +851,45 @@ def set_emotion(request):
     
     return JsonResponse({'error': 'Invalid request method'})
 
+# OLLAMA INTEGRATION (Optional - kept for backward compatibility)
+def get_ollama_feedback(user_answer, question, emotion, category="behavioral"):
+    """Optional Ollama integration - kept for users who want AI feedback"""
+    logger.info("Attempting Ollama feedback...")
+    
+    try:
+        # Check if Ollama is available
+        response = requests.get("http://localhost:11434/api/tags", timeout=3)
+        if response.status_code != 200:
+            return None
+        
+        # Simple prompt for faster processing
+        url = "http://localhost:11434/api/chat"
+        payload = {
+            "model": "mistral",
+            "stream": False,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": f"You are an interview coach. Evaluate {category} interview answers. Be encouraging but specific."
+                },
+                {
+                    "role": "user",
+                    "content": f"Question: {question}\nAnswer: {user_answer}\nEmotion: {emotion}\n\nProvide brief feedback on strengths, improvements, and delivery."
+                }
+            ]
+        }
+        
+        response = requests.post(url, json=payload, timeout=25)
+        if response.status_code == 200:
+            result = response.json()
+            if 'message' in result and 'content' in result['message']:
+                return result['message']['content']
+    
+    except Exception as e:
+        logger.warning(f"Ollama feedback failed: {e}")
+    
+    return None
+
 @csrf_exempt
 def transcribe_audio(request):
     if request.method == "POST":
@@ -1007,6 +1047,33 @@ def analyze_answer_content(answer, question):
     
     return analysis
 
+def get_ollama_content_coverage(answer, question):
+    """
+    Uses Ollama to estimate content coverage between an answer and a question.
+    Returns a float between 0 and 1.
+    """
+    prompt = f"""
+    You are evaluating an interview answer. 
+    Question: "{question}"
+    Answer: "{answer}"
+    
+    Rate the content coverage: How completely does the answer address the question? 
+    Respond with ONLY a JSON object: {{"content_coverage": number between 0 and 1}}.
+    """
+    result = subprocess.run(
+        ["ollama", "run", "llama3"], 
+        input=prompt.encode("utf-8"), 
+        stdout=subprocess.PIPE
+    )
+    try:
+        response_text = result.stdout.decode("utf-8").strip()
+        data = json.loads(response_text)
+        return float(data.get("content_coverage", 0.6))
+    except Exception as e:
+        logger.warning(f"Ollama content coverage parsing failed: {e}")
+        return 0.6  # fallback default
+
+
 def enhanced_analyze_answer_content(answer, question, category="behavioral", role_level="mid"):
     """
     Enhanced version combining existing analysis with semantic vectorization
@@ -1020,7 +1087,10 @@ def enhanced_analyze_answer_content(answer, question, category="behavioral", rol
     if vectorizer:
         try:
             semantic_score = vectorizer.analyze_answer_semantics(answer, category, role_level)
-            
+            ollama_coverage = get_ollama_content_coverage(answer, question)
+            empathic_feedback = get_ollama_empathic_feedback(answer, question)
+            semantic_score.content_coverage = ollama_coverage
+
             # Generate contextualized feedback
             semantic_feedback = vectorizer.generate_contextualized_feedback(
                 semantic_score, category, role_level, word_limit=180
@@ -1041,8 +1111,9 @@ def enhanced_analyze_answer_content(answer, question, category="behavioral", rol
                     'semantic_strengths': semantic_score.strengths,
                     'semantic_feedback': semantic_feedback
                 },
-                'overall_score': calculate_overall_score(semantic_score, existing_analysis),
-                'enhanced_feedback': generate_combined_feedback(existing_analysis, semantic_score, category)
+                'overall_score': calculate_overall_score(semantic_score, existing_analysis, ollama_coverage),
+                'enhanced_feedback': generate_combined_feedback(existing_analysis, semantic_score, category),
+                'empathic_feedback': empathic_feedback 
             }
             
             logger.info(f"Enhanced analysis completed - Overall score: {enhanced_analysis['overall_score']:.2f}")
@@ -1057,20 +1128,22 @@ def enhanced_analyze_answer_content(answer, question, category="behavioral", rol
         **existing_analysis,
         'semantic_analysis': None,
         'overall_score': 0.6,  # Default score
-        'enhanced_feedback': "Basic analysis completed successfully."
+        'enhanced_feedback': "Basic analysis completed successfully.",
+        'empathic_feedback': get_ollama_empathic_feedback(answer, question)  # <-- Add this
+
     }
 
-def calculate_overall_score(semantic_score: SemanticScore, existing_analysis: dict) -> float:
+def calculate_overall_score(semantic_score: SemanticScore, existing_analysis: dict, ollama_coverage: float = None) -> float:
     """Calculate a comprehensive score combining semantic and traditional analysis"""
-    
+    content_coverage = ollama_coverage if ollama_coverage is not None else semantic_score.content_coverage
+
     # Semantic components (60% weight)
     semantic_weight = 0.6
     semantic_avg = (
-        semantic_score.content_coverage +
+        content_coverage +
         semantic_score.depth_score +
-        semantic_score.relevance_score +
-        semantic_score.communication_clarity
-    ) / 4
+        emotion_confidence
+    ) / 3
     
     # Traditional analysis components (40% weight)
     traditional_weight = 0.4
@@ -1371,44 +1444,6 @@ def vectorization_status(request):
         'model_loaded': bool(vectorizer and vectorizer.model) if vectorizer else False
     })
 
-# OLLAMA INTEGRATION (Optional - kept for backward compatibility)
-def get_ollama_feedback(user_answer, question, emotion, category="behavioral"):
-    """Optional Ollama integration - kept for users who want AI feedback"""
-    logger.info("Attempting Ollama feedback...")
-    
-    try:
-        # Check if Ollama is available
-        response = requests.get("http://localhost:11434/api/tags", timeout=3)
-        if response.status_code != 200:
-            return None
-        
-        # Simple prompt for faster processing
-        url = "http://localhost:11434/api/chat"
-        payload = {
-            "model": "mistral",
-            "stream": False,
-            "messages": [
-                {
-                    "role": "system",
-                    "content": f"You are an interview coach. Evaluate {category} interview answers. Be encouraging but specific."
-                },
-                {
-                    "role": "user",
-                    "content": f"Question: {question}\nAnswer: {user_answer}\nEmotion: {emotion}\n\nProvide brief feedback on strengths, improvements, and delivery."
-                }
-            ]
-        }
-        
-        response = requests.post(url, json=payload, timeout=25)
-        if response.status_code == 200:
-            result = response.json()
-            if 'message' in result and 'content' in result['message']:
-                return result['message']['content']
-    
-    except Exception as e:
-        logger.warning(f"Ollama feedback failed: {e}")
-    
-    return None
 
 def get_enhanced_feedback_with_ai_fallback(user_answer, question, emotion, category="behavioral", role_level="mid"):
     """
@@ -1537,6 +1572,39 @@ def diagnostic_info(request):
         info['ollama'] = {'available': False, 'models': []}
     
     return JsonResponse(info)
+
+def get_ollama_empathic_feedback(answer, question):
+    """
+    Generates empathetic coaching feedback for the answer using Ollama.
+    """
+    import subprocess, json
+    prompt = f"""
+    You are an empathetic interview coach. 
+    Read the following question and answer, then provide friendly, supportive feedback with encouragement and one clear improvement suggestion. 
+    Keep it under 120 words.
+
+    Question: "{question}"
+    Answer: "{answer}"
+
+    Respond ONLY with JSON like this:
+    {{
+      "feedback": "Your supportive and coaching feedback here."
+    }}
+    """
+    try:
+        result = subprocess.run(
+            ["ollama", "run", "llama3"],
+            input=prompt.encode("utf-8"),
+            stdout=subprocess.PIPE,
+            timeout=15
+        )
+        response_text = result.stdout.decode("utf-8").strip()
+        data = json.loads(response_text)
+        return data.get("feedback", "Great effort! Keep refining your answer.")
+    except Exception as e:
+        logger.warning(f"Ollama empathic feedback failed: {e}")
+        return "Great effort! Keep refining your answer."
+
 
 # INITIALIZATION HELPER
 def initialize_vectorizer_on_startup():
@@ -2212,6 +2280,9 @@ def feedback_page_with_profile(request):
     # Generate personalized feedback
     feedback = get_personalized_feedback_with_profile(answer, question, validated_emotion, category)
     
+    enhanced_analysis = enhanced_analyze_answer_content(answer, question, category)
+    empathic_feedback = enhanced_analysis.get('empathic_feedback', "Great effort! Keep refining your answer.")
+
     end_time = time.time()
     processing_time = end_time - start_time
     
@@ -2254,6 +2325,7 @@ def feedback_page_with_profile(request):
         'raw_emotion': detected_emotion,
         'emotion_confidence': emotion_confidence,
         'feedback': feedback,
+        'empathic_feedback': empathic_feedback,
         'feedback_type': "Personalized" if profile else "Standard",
         'category': category,
         'camera_available': camera_available,
@@ -2705,6 +2777,8 @@ def feedback_page_enhanced_with_recording(request):
             semantic = enhanced_analysis.get('semantic_analysis')
             if semantic:
                 content_score = semantic.get('content_coverage', 0.6)
+                empathic_feedback = enhanced_analysis.get('empathic_feedback', "Great effort! Keep refining your answer.")  # <-- ADD THIS
+
         except Exception as e:
             logger.warning(f"Could not calculate scores: {e}")
 
@@ -2786,6 +2860,7 @@ def feedback_page_enhanced_with_recording(request):
         'emotion': validated_emotion,
         'raw_emotion': detected_emotion,
         'emotion_confidence': emotion_confidence,
+        'empathic_feedback': empathic_feedback,
         'feedback': feedback,
         'feedback_model_name': feedback_model_name,  # ✅ to show in frontend
         'feedback_type': "Personalized Model-Based",
