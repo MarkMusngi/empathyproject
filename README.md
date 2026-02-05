@@ -1,3 +1,5 @@
+[![Watch the video](https://img.youtube.com/vi/7Ti-MjIvCJ8/maxresdefault.jpg)](https://youtu.be/7Ti-MjIvCJ8)
+
 # Empathic Mock Interview System
 
 A web-based application that simulates mock interviews and provides AI-generated empathetic feedback on user responses. The system integrates Large Language Models (LLMs) with speech-to-text and semantic analysis to evaluate interview answers and return structured performance metrics and supportive feedback.
