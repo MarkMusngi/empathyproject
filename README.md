@@ -1,69 +1,28 @@
-# Interview Feedback Simulator
+# Empathic Mock Interview System
 
-This project simulates a mock interview session using speech input, real-time emotion detection, and local LLM-based feedback. It is designed to help users practice and receive constructive interview feedback.
+A web-based application that simulates mock interviews and provides AI-generated empathetic feedback on user responses. The system integrates Large Language Models (LLMs) with speech-to-text and semantic analysis to evaluate interview answers and return structured performance metrics and supportive feedback.
 
-## Features
+## Key Features
+* **Interactive Interview Interface**: A clean, web-based hub where users receive mock interview questions and record their responses in real-time.
+* **Smart Transcription**: Integrated speech-to-text processing that captures verbal answers and converts them into text for analysis.
+* **Comprehensive Evaluation**: Manage every detail of an interview assessment including:
+    * **Semantic Analysis**: Deep processing of the transcribed response to evaluate content quality and relevance.
+    * **Sentiment Tracking**: Analysis of emotion and tone to provide a holistic view of the user's delivery.
+    * **Performance Metrics**: Generation of structured ratings and scores based on interview best practices.
+* **AI-Powered Feedback**: Utilizes a Large Language Model (Ollama) to generate supportive and empathetic critiques, moving beyond generic automated responses.
+* **Modular Feedback Dashboard**: Displays results on a dedicated page featuring emotion metrics, response quality, and actionable advice for improvement.
 
-- Microphone-based voice recording
-- Emotion detection via webcam using DeepFace
-- Real-time transcription using Google Speech Recognition
-- Feedback generation using a local LLM model via Ollama
+## Tech Stack
+* **Backend**: Python, Django
+* **AI Engine**: Large Language Models (Ollama)
+* **Processing**: Speech-to-Text and Natural Language Processing (NLP)
+* **Frontend**: HTML, CSS, JavaScript
+* **API Architecture**: RESTful APIs for seamless data flow between the web interface and the AI model.
 
-## Prerequisites
-
-Ensure you have the following installed:
-
-### Python
-
-- Python 3.8 or higher
-
-### System Tools
-
-- Microphone and webcam
-- FLAC encoder (used by the SpeechRecognition library)
-  - Windows: [flac.exe](https://xiph.org/flac/download.html) and add to your PATH
-  - macOS: Use `brew install flac`
-
-### Ollama (for local LLM)
-
-1. Download Ollama from https://ollama.com/
-2. Install and start it (typically runs in the background)
-3. Pull the desired model:
-   ```bash
-   ollama pull mistral
-
-pip install opencv-python deepface SpeechRecognition requests pyaudio
-
-
-# Core Django and web framework
-pip install django
-pip install djangorestframework  # If using REST APIs
-
-# Upgrade pip first
-pip install --upgrade pip
-
-# Install core dependencies
-pip install numpy scipy
-pip install tensorflow
-pip install django
-pip install opencv-python
-pip install deepface
-pip install SpeechRecognition
-pip install pyaudio
-pip install pydub
-pip install sentence-transformers
-pip install scikit-learn
-pip install vaderSentiment
-pip install requests
-
-# Run Django migrations
-python manage.py makemigrations
-python manage.py migrate
-
-# Create superuser (optional)
-python manage.py createsuperuser
-
-# Start development server
-python manage.py runserver
-
-python manage.py runserver 127.0.0.1:8001
+## How It Works
+1. **Question Presentation**: The system presents a targeted mock interview question to the user through the web interface.
+2. **Real-time Capture**: The user responds verbally, and the system performs real-time speech-to-text transcription.
+3. **Sentiment & Semantic Analysis**: The transcribed text is processed to identify underlying emotions and the semantic depth of the answer.
+4. **LLM Evaluation**: The system sends the processed data to the Ollama model for professional-grade evaluation.
+5. **Feedback Generation**: The model creates structured ratings and empathetic, constructive feedback tailored to the user's specific response.
+6. **Result Visualization**: Performance metrics and feedback are displayed on a summary dashboard, allowing users to track their progress over time.
